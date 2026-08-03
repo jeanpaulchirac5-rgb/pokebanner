@@ -1,0 +1,54 @@
+# Builds the Poke-Banner Windows installer + portable .exe on a version tag
+# (v1.0.0, v1.1.0, …) and attaches them to a GitHub Release, giving the
+# landing page's "GET IT ON GITHUB" button a real, permanent download URL.
+#
+# How to publish (once this repo is on GitHub):
+#   1. Push the project to a GitHub repo.
+#   2. Tag the release:          git tag v1.0.0 && git push origin v1.0.0
+#   3. CI builds and uploads:
+#        desktop/release/Poke-Banner-Setup-1.0.0.exe      (installer)
+#        desktop/release/Poke-Banner-Portable-1.0.0.exe   (portable)
+#   4. The landing page auto-detects the release via a live GitHub API check
+#      (useReleaseLive in src/pages/Landing.tsx) — the Download button goes
+#      live the moment this release is public. No manual URL wiring needed.
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install web app deps
+        run: bun install
+
+      - name: Build web app (dist/)
+        run: bun run build
+
+      - name: Install desktop shell deps
+        working-directory: desktop
+        run: bun install
+
+      - name: Generate app icon
+        working-directory: desktop
+        run: bun run icon
+
+      - name: Package Windows installer + portable exe
+        working-directory: desktop
+        run: bunx electron-builder --win --publish never
+
+      - name: Attach artifacts to the release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: desktop/release/*.exe
+          generate_release_notes: true
