@@ -1,0 +1,664 @@
+/* Pixel + neobrutalism game theme
+   - neon-green sky stays exactly #00ff00 (keyed out by the desktop shell)
+   - every img uses image-rendering: pixelated for crisp GBA-style sprites
+   - Press Start 2P (pixel font) is loaded via <link> in index.html */
+@import "tailwindcss";
+@import "tw-animate-css";
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --font-pixel: "Press Start 2P", ui-monospace, "Courier New", monospace;
+  --color-ink: #111111;
+}
+
+/* DO NOT CHANGE */
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+/* CHANGE VALUES FOR THEME */
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  button:not([disabled]),
+  [role="button"]:not([disabled]) {
+    cursor: pointer;
+  }
+  /* Retro console crispness on every visual element */
+  img,
+  canvas,
+  svg,
+  video {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+  .pixelated {
+    image-rendering: pixelated;
+  }
+  * {
+    font-family: var(--font-pixel);
+  }
+}
+
+/* Neobrutalism building blocks (square corners, fat black borders, flat blocks) */
+.nb-btn {
+  border: 2px solid #111111;
+  background: #ffffff;
+  color: #111111;
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  line-height: 1;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  box-shadow: 3px 3px 0 0 #111111;
+  border-radius: 0;
+  transition: transform 80ms steps(2), box-shadow 80ms steps(2);
+  user-select: none;
+}
+.nb-btn:hover:not(:disabled) {
+  transform: translate(1px, 1px);
+  box-shadow: 2px 2px 0 0 #111111;
+}
+.nb-btn:active:not(:disabled) {
+  transform: translate(3px, 3px);
+  box-shadow: 0 0 0 0 #111111;
+}
+.nb-btn:disabled {
+  opacity: 0.4;
+  box-shadow: 1px 1px 0 0 #111111;
+  cursor: not-allowed;
+}
+.nb-panel {
+  border: 4px solid #111111;
+  background: #ffffff;
+  color: #111111;
+  border-radius: 0;
+  box-shadow: 6px 6px 0 0 #111111;
+}
+
+/* Scenery scrolling (paused by inline animationPlayState when not walking) */
+@keyframes scenery-scroll {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: -128px 0;
+  }
+}
+/* far silhouette band: 16px tile, slowest parallax */
+.scenery-scroll-far {
+  background-repeat: repeat-x;
+  background-size: 128px 16px;
+  animation: scenery-scroll 14s linear infinite;
+}
+/* sky: drifting pixel clouds + birds above the scenery, slowest drift
+   (paused by inline animationPlayState while the Pokémon isn't walking) */
+.scenery-scroll-sky {
+  background-repeat: repeat-x;
+  background-size: 128px 28px;
+  animation: scenery-scroll 22s linear infinite;
+}
+/* mid grass/props: 12px tile */
+.scenery-scroll {
+  background-repeat: repeat-x;
+  background-size: 128px 12px;
+  animation: scenery-scroll 9s linear infinite;
+}
+@keyframes ground-scroll {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: -128px 0;
+  }
+}
+.ground-scroll {
+  background-repeat: repeat-x;
+  background-size: 128px 8px;
+  animation: ground-scroll 4s linear infinite;
+}
+
+/* Battle feel */
+@keyframes hp-flash {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.15;
+  }
+}
+.hp-flash {
+  animation: hp-flash 0.26s steps(2) 2;
+}
+@keyframes lunge-left {
+  0% {
+    transform: translateX(0);
+  }
+  40% {
+    transform: translateX(10px);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+.lunge-left {
+  animation: lunge-left 0.26s steps(3);
+}
+@keyframes lunge-right {
+  0% {
+    transform: translateX(0);
+  }
+  40% {
+    transform: translateX(-10px);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+.lunge-right {
+  animation: lunge-right 0.26s steps(3);
+}
+
+/* Attack animation: type-colored impact burst + move-name popup */
+@keyframes impact-burst {
+  0% {
+    transform: scale(0.2) rotate(0deg);
+    opacity: 0;
+  }
+  35% {
+    transform: scale(1.6) rotate(90deg);
+    opacity: 1;
+  }
+  70% {
+    transform: scale(1.1) rotate(180deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.6) rotate(270deg);
+    opacity: 0;
+  }
+}
+.impact-burst {
+  animation: impact-burst 0.7s steps(6) forwards;
+  text-shadow: 0 0 4px currentColor;
+}
+@keyframes move-name-pop {
+  0% {
+    transform: translateY(4px);
+    opacity: 0;
+  }
+  25% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+.move-name-pop {
+  animation: move-name-pop 0.7s steps(5) forwards;
+}
+
+/* Shiny sprite glow */
+@keyframes shiny-glow {
+  0%, 100% {
+    filter: drop-shadow(0 0 1px #fff) drop-shadow(0 0 3px #ffd21f);
+  }
+  50% {
+    filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 6px #ff8a3d);
+  }
+}
+.shiny-glow {
+  animation: shiny-glow 1.2s steps(3) infinite;
+}
+
+/* Hidden easter-egg: the egg wiggles, begging to be clicked */
+@keyframes egg-wiggle {
+  0%, 100% {
+    transform: translate(-50%, 0) rotate(-6deg);
+  }
+  25% {
+    transform: translate(-50%, -1px) rotate(4deg);
+  }
+  50% {
+    transform: translate(-50%, 0) rotate(-4deg);
+  }
+  75% {
+    transform: translate(-50%, -1px) rotate(6deg);
+  }
+}
+.egg-wiggle {
+  animation: egg-wiggle 1.4s steps(4) infinite;
+}
+
+/* Capture ball wobble */
+@keyframes ball-wobble {
+  0% {
+    transform: translateX(0) rotate(0);
+  }
+  25% {
+    transform: translateX(-4px) rotate(-12deg);
+  }
+  50% {
+    transform: translateX(4px) rotate(12deg);
+  }
+  75% {
+    transform: translateX(-4px) rotate(-8deg);
+  }
+  100% {
+    transform: translateX(0) rotate(0);
+  }
+}
+.ball-wobble {
+  animation: ball-wobble 0.5s steps(4) infinite;
+}
+
+/* Floating battle damage numbers (rise + fade) */
+@keyframes dmg-pop {
+  0% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-14px);
+    opacity: 0;
+  }
+}
+.dmg-pop {
+  animation: dmg-pop 0.7s ease-out forwards;
+  text-shadow: 1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff;
+}
+
+/* Status effect badges above the battle sprites */
+@keyframes zzz-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+.status-zzz {
+  animation: zzz-bob 0.8s steps(2) infinite;
+}
+@keyframes poison-bubble {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 0.9;
+  }
+  50% {
+    transform: translateY(-4px) scale(1.2);
+    opacity: 1;
+  }
+}
+.poison-bubble {
+  animation: poison-bubble 0.9s steps(3) infinite;
+}
+
+/* "VS!" pop at battle start / team switch-in */
+@keyframes vs-pop {
+  0% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+  30% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  75% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.85);
+    opacity: 0;
+  }
+}
+.vs-pop {
+  animation: vs-pop 0.9s ease-out forwards;
+  text-shadow: 2px 2px 0 #fff, -2px -2px 0 #fff, 2px -2px 0 #fff, -2px 2px 0 #fff;
+}
+
+/* Level-up / capture-success sparkles */
+@keyframes sparkle {
+  0% {
+    transform: translateY(0) scale(0.4);
+    opacity: 0;
+  }
+  40% {
+    transform: translateY(-6px) scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-14px) scale(0.9);
+    opacity: 0;
+  }
+}
+.sparkle {
+  animation: sparkle 1s ease-out forwards;
+}
+
+/* Dust puffs kicked up while walking */
+@keyframes dust-puff {
+  0% {
+    transform: translateY(0) scale(0.6);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(3px) scale(1.4);
+    opacity: 0;
+  }
+}
+.dust-puff {
+  animation: dust-puff 0.6s ease-out forwards;
+}
+
+/* Grounding shadow under sprites */
+.sprite-shadow {
+  border-radius: 9999px;
+  background: rgba(0, 0, 0, 0.28);
+}
+
+/* Low-HP pulse for the battle HP bar */
+@keyframes low-hp-pulse {
+  0%,
+  100% {
+    background-color: #ef4444;
+  }
+  50% {
+    background-color: #7f1d1d;
+  }
+}
+.low-hp-pulse {
+  animation: low-hp-pulse 0.6s steps(2) infinite;
+}
+
+/* Landing hero sprite parade (walk left-right) */
+@keyframes sprite-walk {
+  0% {
+    transform: translateX(-8px) scaleX(1);
+  }
+  49% {
+    transform: translateX(8px) scaleX(1);
+  }
+  50% {
+    transform: translateX(8px) scaleX(-1);
+  }
+  99% {
+    transform: translateX(-8px) scaleX(-1);
+  }
+  100% {
+    transform: translateX(-8px) scaleX(1);
+  }
+}
+.sprite-walker {
+  animation: sprite-walk 2.4s steps(12) infinite;
+}
+
+/* Discreet desktop notifications: 2px red/blue flash at the top of the banner */
+@keyframes notif-flash {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+.notif-flash {
+  /* forwards: end fully transparent so the 2px line can never stay pinned on
+     the banner after the blink sequence (the banner also clears it via timer). */
+  animation: notif-flash 0.4s steps(2) 8 forwards;
+}
+
+/* Arena button attention pulse */
+@keyframes arena-pulse {
+  0%, 100% {
+    background-color: #ff4d4d;
+  }
+  50% {
+    background-color: #ffb3b3;
+  }
+}
+.arena-pulse {
+  animation: arena-pulse 0.8s steps(2) infinite;
+}
+
+/* ---------------------------------------------------------------------------
+   Electron desktop shell (see desktop/)
+   The sky is painted neon green (#00ff00) in the browser; in the shell the
+   <html class="desktop"> override swaps it for TRUE per-pixel alpha so the
+   banner floats over the desktop with no green fringing. The sky is the drag
+   handle; every interactive element inside is no-drag.
+--------------------------------------------------------------------------- */
+html.desktop .game-sky {
+  background-color: transparent !important;
+  -webkit-app-region: drag;
+}
+html.desktop .game-sky button,
+html.desktop .game-sky a,
+html.desktop .game-sky input,
+html.desktop .game-sky .nb-btn {
+  -webkit-app-region: no-drag;
+}
+html.desktop #game-panel-area {
+  -webkit-app-region: no-drag;
+}
+
+/* ---------------------------------------------------------------------------
+   Evolution sequences — each species plays its own themed animation
+   (evolutionFxFor in engine.ts drives the variant + colors). The evolving
+   phase flashes white, pulses the sprite, and spawns variant particles.
+--------------------------------------------------------------------------- */
+@keyframes evo-flash {
+  0% {
+    opacity: 0.9;
+  }
+  50% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0.9;
+  }
+}
+.evo-flash {
+  animation: evo-flash 0.5s steps(2) infinite;
+  pointer-events: none;
+}
+@keyframes evo-grow {
+  0% {
+    transform: scale(0.6) translateY(4px);
+  }
+  50% {
+    transform: scale(1.15) translateY(-2px);
+  }
+  100% {
+    transform: scale(1) translateY(0);
+  }
+}
+.evo-grow {
+  animation: evo-grow 0.8s steps(4) infinite;
+}
+@keyframes evo-particle {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-26px) scale(0.4);
+    opacity: 0;
+  }
+}
+.evo-particle {
+  position: absolute;
+  bottom: 8px;
+  animation: evo-particle 1s steps(6) infinite;
+  pointer-events: none;
+}
+@keyframes evo-ring {
+  0% {
+    transform: scale(0.3);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+.evo-ring {
+  position: absolute;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  animation: evo-ring 0.9s steps(5) infinite;
+  pointer-events: none;
+}
+
+/* Nurse Joy NPC bobbing (appears on the banner like the merchant) */
+@keyframes nurse-bob {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+.nurse-bob {
+  animation: nurse-bob 0.8s steps(3) infinite;
+}
+
+/* Tiny pixel poké ball (pure CSS, for pickups + capture button) */
+.pokeball-pixel {
+  position: relative;
+  display: block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #111;
+  border-radius: 50%;
+  background: linear-gradient(to bottom, #ff4d4d 0 45%, #111 45% 55%, #fff 55% 100%);
+}
+.pokeball-pixel::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 3px;
+  height: 3px;
+  transform: translate(-50%, -50%);
+  border: 1px solid #111;
+  border-radius: 50%;
+  background: #fff;
+}

@@ -1,0 +1,57 @@
+{
+  "name": "poke-banner-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Electron shell that docks the 60px Poke-Banner above the Windows taskbar (neon-green sky keyed out to transparent)",
+  "main": "main.cjs",
+  "author": "Poke-Banner",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dev": "cross-env POKEBANNER_URL=http://localhost:5173/desktop POKEBANNER_DEVTOOLS=1 electron .",
+    "build:web": "cd .. && bun run build",
+    "icon": "node make-icon.cjs",
+    "predist": "node make-icon.cjs",
+    "dist": "npm run build:web && electron-builder --win",
+    "dist:dir": "npm run build:web && electron-builder --dir",
+    "pack": "electron-builder --dir"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "electron": "^37.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.pokebanner.desktop",
+    "productName": "Poke-Banner",
+    "copyright": "Unofficial fan game — Pokémon © Nintendo / Game Freak",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": ["main.cjs", "preload.cjs", "icon.cjs", "package.json"],
+    "extraResources": [
+      {
+        "from": "../dist",
+        "to": "dist",
+        "filter": ["**/*"]
+      }
+    ],
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "artifactName": "Poke-Banner-Setup-${version}.exe"
+    },
+    "portable": {
+      "artifactName": "Poke-Banner-Portable-${version}.exe"
+    }
+  }
+}
