@@ -703,6 +703,90 @@ export function cloudsSvg(seed = 0, phase: SkyPhase = "day"): string {
   return skyTile(seed, phase, false);
 }
 
+/** The sky's vertical band gradient as a NON-repeating data URI (1×28,
+ *  stretched to 100% width). The old sky background tiled every 256px and
+ *  looked repetitive; this never tiles, and the clouds now drift as
+ *  individual sprites (see skyClouds). */
+export function skyGradientSvg(phase: SkyPhase = "day"): string {
+  const stack = SKY_BANDS[phase] ?? SKY_BANDS.day;
+  const bandH = Math.floor(28 / stack.length);
+  const parts = stack.map(
+    (fill, i) => `<rect width="1" height="${bandH}" y="${i * bandH}" fill="${fill}"/>`,
+  );
+  return svgUri(1, 28, parts.join(""));
+}
+
+/** A single pixel cloud (white puffs + under-shade), drawn at width w. */
+function cloudShapeUri(w: number, cloud: string, shade: string): string {
+  const h = 9;
+  const parts = [
+    `<rect x="${Math.floor(w * 0.18)}" y="0" width="${Math.floor(w * 0.5)}" height="3" fill="${cloud}"/>`,
+    `<rect x="${Math.floor(w * 0.45)}" y="2" width="${Math.floor(w * 0.3)}" height="3" fill="${cloud}"/>`,
+    `<rect x="0" y="3" width="${w}" height="4" fill="${cloud}"/>`,
+    `<rect x="0" y="7" width="${w}" height="1" fill="${shade}"/>`,
+  ];
+  return svgUri(w, h, parts.join(""));
+}
+
+/** A tiny pixel bird ("~" chevron). */
+function birdShapeUri(bird: string): string {
+  return svgUri(8, 4, [
+    `<rect x="0" y="1" width="4" height="1" fill="${bird}"/>`,
+    `<rect x="2" y="2" width="2" height="1" fill="${bird}"/>`,
+    `<rect x="4" y="1" width="4" height="1" fill="${bird}"/>`,
+    `<rect x="4" y="2" width="2" height="1" fill="${bird}"/>`,
+  ].join(""));
+}
+
+/** Individual drifting cloud + bird sprites — 12 clouds and 3 birds, each
+ *  with its own size, height, speed (durSec) and spread (negative delay), so
+ *  the sky never shows a repeating tile. Deterministic per seed. */
+export interface SkyCloudSprite {
+  key: string;
+  uri: string;
+  size: number;
+  topPx: number;
+  durSec: number;
+  delaySec: number;
+  kind: "cloud" | "bird";
+}
+
+export function skyClouds(seed = 0, phase: SkyPhase = "day"): SkyCloudSprite[] {
+  let s = (seed >>> 0) || 1;
+  const rnd = () => {
+    s = (s * 1664525 + 1013904223) >>> 0;
+    return s / 0xffffffff;
+  };
+  const pal = SKY_PALETTE[phase] ?? SKY_PALETTE.day;
+  const out: SkyCloudSprite[] = [];
+  for (let i = 0; i < 12; i++) {
+    const w = 14 + Math.floor(rnd() * 13); // 14–26px
+    out.push({
+      key: `cloud-${i}`,
+      uri: cloudShapeUri(w, pal.cloud, pal.shade),
+      size: w,
+      topPx: 1 + Math.floor(rnd() * 17),
+      durSec: 18 + Math.floor(rnd() * 28), // 18–45s
+      delaySec: Math.floor(rnd() * 60), // spread along the drift path
+      kind: "cloud",
+    });
+  }
+  if (pal.bird) {
+    for (let i = 0; i < 3; i++) {
+      out.push({
+        key: `bird-${i}`,
+        uri: birdShapeUri(pal.bird),
+        size: 6,
+        topPx: 2 + Math.floor(rnd() * 10),
+        durSec: 8 + Math.floor(rnd() * 9),
+        delaySec: Math.floor(rnd() * 30),
+        kind: "bird",
+      });
+    }
+  }
+  return out;
+}
+
 /** Small pixel sun — chunky disc with corner rays. Color shifts at sunset
  *  so the sun looks like it's sinking into the horizon glow. */
 export function sunSvg(variant: "day" | "sunset" = "day"): string {

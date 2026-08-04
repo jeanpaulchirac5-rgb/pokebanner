@@ -126,6 +126,8 @@ export const COVERAGE_MAP: Record<string, SuiteName[]> = {
   groundSvg: ["presentation"],
   skySvg: ["presentation"],
   cloudsSvg: ["presentation"],
+  skyGradientSvg: ["presentation"],
+  skyClouds: ["presentation"],
   skyColorFor: ["presentation"],
   ambientParticles: ["presentation"],
   sunSvg: ["presentation"],

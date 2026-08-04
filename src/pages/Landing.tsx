@@ -9,8 +9,9 @@ import {
   celestialForPhase,
   groundSvg,
   scenerySvg,
+  skyClouds,
   skyColorFor,
-  skySvg,
+  skyGradientSvg,
   urlSpriteCombat,
   urlSpriteShiny,
   urlSpriteWalking,
@@ -514,11 +515,25 @@ function MockBanner() {
       className="relative h-[60px] w-full overflow-hidden border-4 border-ink"
       style={{ backgroundColor: skyColorFor("day") }}
     >
-      {/* sky: drifting clouds */}
+      {/* sky: non-repeating gradient + individual drifting clouds */}
       <div
-        className="scenery-scroll-sky absolute inset-x-0 top-0 h-[28px]"
-        style={{ backgroundImage: `url("${skySvg(20260701, "day")}")` }}
+        className="sky-gradient absolute inset-x-0 top-0 h-[28px]"
+        style={{ backgroundImage: `url("${skyGradientSvg("day")}")` }}
       />
+      {skyClouds(20260701, "day").map((c) => (
+        <div
+          key={c.key}
+          className="sky-cloud pointer-events-none z-[1]"
+          style={{
+            top: c.topPx,
+            width: c.size,
+            height: c.size,
+            backgroundImage: `url("${c.uri}")`,
+            animationDuration: `${c.durSec}s`,
+            animationDelay: `-${c.delaySec}s`,
+          }}
+        />
+      ))}
       {/* sun */}
       {sun.map((c, i) => (
         <div

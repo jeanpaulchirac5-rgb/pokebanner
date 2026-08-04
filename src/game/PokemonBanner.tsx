@@ -79,7 +79,7 @@ import {
   ambientParticles,
   backdropSvg,
   celestialForPhase,
-  cloudsSvg,
+  skyClouds,
   combatPoseClass,
   DUST_LEVEL_PX,
   flinchClass,
@@ -91,7 +91,7 @@ import {
   preloadSprites,
   scenerySvg,
   skyColorFor,
-  skySvg,
+  skyGradientSvg,
   urlSpriteCombat,
   urlSpriteShiny,
   urlSpriteWalking,
@@ -208,7 +208,7 @@ interface GameRef {
   nurseJoyLife: number;
 }
 
-const WALK_PX_PER_FRAME = 2;
+const WALK_PX_PER_FRAME = 3;
 const FRAME_MS = 100;
 const IDLE_PAUSE_FRAMES = 5; // ~0.5s hesitation + sway at each turn-around
 
@@ -459,11 +459,17 @@ export default function PokemonBanner() {
             playSfx("shiny");
           }
           preloadSprites([encounter.speciesId], "combat");
-          s.enemy = { pokemon, encounter, x: viewportW.current + 30 };
+          s.enemy = {
+            pokemon,
+            encounter,
+            // Spawn just past the right edge (relative to the leader) so the
+            // approach is a few seconds, not ~45s of walking across the screen.
+            x: Math.max(viewportW.current * 0.6, s.leaderX + 260),
+          };
           s.phase = "approach";
         }
       } else if (s.phase === "approach" && s.enemy) {
-        s.enemy.x -= 4;
+        s.enemy.x -= 16;
         // The approaching wild Pokémon trails dust behind it too — sized and
         // paced by its own species gait.
         const enemyDust = walkDustFor(walkAnimClass(s.enemy.pokemon.speciesId));
@@ -1414,7 +1420,7 @@ export default function PokemonBanner() {
   // Idle animation: active during the turn-around pause and while the tray
   // pause freezes the walk (rendering continues then, so it's visible). The
   // class is per-species (idleAnimClass in presentation.ts).
-  const idling = walking && (s.paused || s.idlePause > 0);
+  const idling = (walking && (s.paused || s.idlePause > 0)) || s.phase === "approach";
   const idleClass = leader ? idleAnimClass(leader.speciesId) : "idle-sway";
   // Walk gait: the per-species MOVEMENT animation, active while actually
   // walking (the idle class only replaces it during the turn-around pause
@@ -1488,17 +1494,31 @@ export default function PokemonBanner() {
           />
         )}
 
-        {/* Sky: drifting pixel clouds + birds. Always animating so the world
-            stays alive even when idle; the tile is seeded by the save's
-            startedAt so it never churns. */}
-        <div
-          className="scenery-scroll-sky absolute inset-x-0 top-0 h-[28px]"
-          style={{
-            // Desktop shell: transparent window → drift the clouds straight
-            // over the wallpaper; the browser keeps the full blue sky tile.
-            backgroundImage: `url("${desktopShell ? cloudsSvg(save.startedAt, phase) : skySvg(save.startedAt, phase)}")`,
-          }}
-        />
+        {/* Sky: a non-repeating vertical gradient + individual drifting
+            clouds and birds. Every cloud is its own sprite at its own speed —
+            nothing tiles, so the sky never looks repetitive. The desktop shell
+            (transparent window) skips the gradient and keeps only the clouds
+            floating over the wallpaper. */}
+        {!desktopShell && (
+          <div
+            className="sky-gradient absolute inset-x-0 top-0 h-[28px]"
+            style={{ backgroundImage: `url("${skyGradientSvg(phase)}")` }}
+          />
+        )}
+        {skyClouds(save.startedAt, phase).map((c) => (
+          <div
+            key={c.key}
+            className="sky-cloud pointer-events-none z-[1]"
+            style={{
+              top: c.topPx,
+              width: c.size,
+              height: c.size,
+              backgroundImage: `url("${c.uri}")`,
+              animationDuration: `${c.durSec}s`,
+              animationDelay: `-${c.delaySec}s`,
+            }}
+          />
+        ))}
 
         {/* Celestial: a pulsing sun by day, sinking low at sunset, and a
             rising moon at night (never scrolls/tiles). */}
@@ -1611,7 +1631,7 @@ export default function PokemonBanner() {
         )}
 
         {/* Walking leader */}
-        {leader && s.phase !== "battle" && s.phase !== "approach" && (
+        {leader && s.phase !== "battle" && (
           <>
             {/* grounding shadow */}
             <div

@@ -215,6 +215,31 @@
   background-size: 256px 28px;
   animation: sky-drift 16s linear infinite;
 }
+/* Living sky: the vertical gradient never tiles, and each cloud is its own
+   sprite drifting across the whole banner at its own speed (skyClouds in
+   presentation.ts) — the sky can never show a repeating tile again. */
+.sky-gradient {
+  background-repeat: no-repeat;
+  background-size: 100% 28px;
+}
+@keyframes cloud-drift {
+  from {
+    transform: translateX(-120px);
+  }
+  to {
+    transform: translateX(calc(100vw + 120px));
+  }
+}
+.sky-cloud {
+  position: absolute;
+  left: 0;
+  background-repeat: no-repeat;
+  background-size: contain;
+  animation-name: cloud-drift;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
 /* mid grass/props: 12px tile */
 .scenery-scroll {
   background-repeat: repeat-x;

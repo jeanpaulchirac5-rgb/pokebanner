@@ -21,7 +21,9 @@ import {
   placeholderSprite,
   preloadSprites,
   scenerySvg,
+  skyClouds,
   skyColorFor,
+  skyGradientSvg,
   skySvg,
   spriteId,
   sunSvg,
@@ -398,6 +400,62 @@ describe("flinch classes (species-flavored crit recoil)", () => {
     expect(flinchClass(combatPoseClass("snorlax"))).toBe("flinch-heave");
     expect(flinchClass(combatPoseClass("pikachu"))).toBe("flinch-recoil");
     expect(flinchClass(combatPoseClass("charmander"))).toBe("flinch-pitch");
+  });
+});
+
+describe("living sky (v1.3.0)", () => {
+  it("skyGradientSvg is a non-repeating 1×28 band gradient (no clouds)", () => {
+    const uri = skyGradientSvg("day");
+    expect(uri.startsWith("data:image/svg+xml")).toBe(true);
+    const svg = decodeURIComponent(uri);
+    expect(svg).toContain('width="1"');
+    expect(svg).toContain('height="28"');
+    expect(svg).not.toContain('#ffffff'); // no cloud puffs in the gradient
+    expect(svg).not.toMatch(/width="256"/);
+  });
+
+  it("skyGradientSvg follows the phase palette", () => {
+    expect(skyGradientSvg("night")).not.toBe(skyGradientSvg("day"));
+    expect(skyGradientSvg("sunset")).not.toBe(skyGradientSvg("day"));
+  });
+
+  it("skyClouds returns 15 varied non-repeating sprites (12 clouds + 3 birds)", () => {
+    const sprites = skyClouds(12345);
+    expect(sprites.length).toBe(15);
+    const clouds = sprites.filter((s) => s.kind === "cloud");
+    const birds = sprites.filter((s) => s.kind === "bird");
+    expect(clouds.length).toBe(12);
+    expect(birds.length).toBe(3);
+    // every cloud is unique in size/height/speed/delay
+    expect(new Set(clouds.map((c) => c.size)).size).toBeGreaterThanOrEqual(5);
+    expect(new Set(clouds.map((c) => c.durSec)).size).toBeGreaterThanOrEqual(5);
+    expect(new Set(clouds.map((c) => c.delaySec)).size).toBeGreaterThanOrEqual(5);
+    // all sprites render valid data URIs
+    for (const s of sprites) {
+      expect(s.uri.startsWith("data:image/svg+xml")).toBe(true);
+      expect(s.size).toBeGreaterThan(0);
+      expect(s.topPx).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it("skyClouds is deterministic per seed and scatters differently across seeds", () => {
+    expect(skyClouds(42)).toEqual(skyClouds(42));
+    expect(skyClouds(42)).not.toEqual(skyClouds(43));
+    // the first cloud's placement/speed must differ between seeds
+    expect(skyClouds(42)[0]).not.toEqual(skyClouds(43)[0]);
+  });
+
+  it("skyClouds drops the birds at night (birds fly home after sunset)", () => {
+    const day = skyClouds(7);
+    const night = skyClouds(7, "night");
+    expect(day.filter((s) => s.kind === "bird").length).toBe(3);
+    expect(night.filter((s) => s.kind === "bird").length).toBe(0);
+  });
+
+  it("skyClouds handles the zero seed without collapsing", () => {
+    const sprites = skyClouds(0);
+    expect(sprites.length).toBeGreaterThan(0);
+    expect(new Set(sprites.map((s) => s.key)).size).toBe(sprites.length);
   });
 });
 
