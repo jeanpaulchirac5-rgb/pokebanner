@@ -10,14 +10,20 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import {
   CENTER_SERVICES,
+  DEX_META,
+  DEX_MILESTONES,
   ITEMS,
   KANTO_151,
   MARKET_TUNING,
+  TYPE_COLORS,
   TUNING,
+  getDexMeta,
   getSpecies,
 } from "./constants";
 import {
   badgeDamageBonus,
+  dexMilestonesEarned,
+  dexRarity,
   marketValueOf,
   pokedexMilestone,
   xpNeeded,
@@ -35,6 +41,7 @@ import {
 import type {
   CenterServiceId,
   ChampionDef,
+  DexRarity,
   Language,
   Pokemon,
   SaveData,
@@ -446,67 +453,129 @@ function DetailsView({ mon, onBack }: { mon: Pokemon; onBack: () => void }) {
 
 function DexTab(props: GamePanelsProps) {
   const { save } = props;
+  const lang = save.language;
   const [q, setQ] = useState("");
+  const [filter, setFilter] = useState<"all" | "seen" | "caught" | "shiny">("all");
+  const [sel, setSel] = useState<string | null>(null);
   const seen = Object.values(save.pokedex).filter((v) => v === "seen" || v === "caught").length;
   const caught = Object.values(save.pokedex).filter((v) => v === "caught").length;
-  const caught10 = caught >= TUNING.catchMilestoneCount;
+  const shinySet = new Set(save.shinyCaught ?? []);
+  const pct = Math.round((caught / KANTO_151.length) * 100);
+  const earnedPcts = new Set(dexMilestonesEarned(caught));
+  const rarityLabel = (r: DexRarity) => {
+    switch (r) {
+      case "common": return t(lang, "dex-rarity-common");
+      case "uncommon": return t(lang, "dex-rarity-uncommon");
+      case "rare": return t(lang, "dex-rarity-rare");
+      default: return t(lang, "dex-rarity-mythic");
+    }
+  };
+  const list = KANTO_151.filter((id) => {
+    const needle = q.trim().toLowerCase();
+    const status = save.pokedex[id];
+    if (filter === "seen" && status !== "seen" && status !== "caught") return false;
+    if (filter === "caught" && status !== "caught") return false;
+    if (filter === "shiny" && !shinySet.has(id)) return false;
+    if (!needle) return true;
+    const nm = localizedName(id, lang).toLowerCase();
+    const en = getSpecies(id).name.toLowerCase();
+    return nm.includes(needle) || en.includes(needle) || id.includes(needle);
+  });
+  const detailId = sel && KANTO_151.includes(sel) ? sel : null;
+  const detail = detailId ? getSpecies(detailId) : null;
+  const detailMeta = detailId ? getDexMeta(detailId) : null;
   return (
     <div className="space-y-2 text-[7px]">
+      {/* Header: title, counts, progress bar */}
       <div className="border-2 border-ink bg-white p-1.5">
         <div className="flex items-center justify-between font-bold uppercase">
-          <span>Kanto Pokédex (151)</span>
+          <span>{t(lang, "dex-title")} (151)</span>
           <span>
-            {caught}/151 caught · {seen}/151 seen
+            {caught}/{KANTO_151.length} {t(lang, "dex-caught")} · {seen}/{KANTO_151.length}{" "}
+            {t(lang, "dex-seen")} · {shinySet.size} {t(lang, "dex-shiny")}
           </span>
         </div>
         <div className="mt-1 h-2 border-2 border-ink bg-white">
-          <div
-            className="h-full bg-green-500"
-            style={{ width: `${(caught / 151) * 100}%` }}
-          />
+          <div className="h-full bg-green-500" style={{ width: pct + "%" }} />
         </div>
-        <div className="mt-1 text-ink/70">
-          Milestones: 10 caught → +10% catch rate {caught10 ? "✓" : ""} · every 20
-          caught → +0.1× XP (currently ×
-          {pokedexMilestone(caught).xpBonus.toFixed(1)})
+        <div className="mt-1 flex items-center justify-between gap-1">
+          <span className="uppercase text-ink/70">{t(lang, "dex-progress")}: {pct}%</span>
+          <span className="text-ink/70">
+            {t(lang, "dex-milestone")}:{" "}
+            {DEX_MILESTONES.map((m) => (
+              <span
+                key={m.pct}
+                className={
+                  "ml-1 inline-block border-2 px-1 font-bold " +
+                  (earnedPcts.has(m.pct)
+                    ? "border-ink bg-yellow-300 text-ink"
+                    : "border-gray-300 bg-gray-100 text-ink/40")
+                }
+                title={m.qty + "× " + localizedItemName(m.item, lang) + " · ₽" + m.money}
+              >
+                {m.pct}%
+              </span>
+            ))}
+          </span>
         </div>
       </div>
-      <input
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        placeholder="SEARCH SPECIES…"
-        maxLength={24}
-        className="mb-1 w-full border-2 border-ink bg-gray-50 px-1 py-1 text-[7px] uppercase"
-      />
+
+      {/* Controls: search + filter chips */}
+      <div className="flex flex-wrap items-center gap-1">
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="SEARCH SPECIES…"
+          maxLength={24}
+          className="w-40 border-2 border-ink bg-gray-50 px-1 py-1 text-[7px] uppercase"
+        />
+        {(["all", "seen", "caught", "shiny"] as const).map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={
+              "border-2 border-ink px-1.5 py-0.5 font-bold uppercase " +
+              (filter === f ? "bg-yellow-300" : "bg-white")
+            }
+          >
+            {f === "all" ? t(lang, "dex-all") : f === "seen" ? t(lang, "dex-seen") : f === "caught" ? t(lang, "dex-caught") : t(lang, "dex-shiny")}
+          </button>
+        ))}
+      </div>
+
+      {/* Grid */}
       <div className="grid grid-cols-5 gap-1 border-2 border-ink bg-white p-1.5 sm:grid-cols-10">
-        {KANTO_151.filter((id) => {
-          const needle = q.trim().toLowerCase();
-          if (!needle) return true;
-          const nm = localizedName(id, save.language).toLowerCase();
-          const en = getSpecies(id).name.toLowerCase();
-          return nm.includes(needle) || en.includes(needle) || id.includes(needle);
-        }).map((id) => {
+        {list.map((id) => {
           const idx = KANTO_151.indexOf(id);
           const status = save.pokedex[id];
+          const isShiny = shinySet.has(id);
           return (
-            <div
+            <button
               key={id}
-              className={`flex h-9 flex-col items-center justify-center border ${
-                status === "caught"
-                  ? "border-red-400 bg-red-100"
+              onClick={() => setSel(sel === id ? null : id)}
+              className={
+                "relative flex h-9 flex-col items-center justify-center border-2 " +
+                (sel === id ? "border-ink bg-yellow-200" : "") +
+                (status === "caught"
+                  ? " border-red-400 bg-red-100"
                   : status === "seen"
-                    ? "border-ink bg-yellow-50"
-                    : "border-gray-200 bg-gray-50"
-              }`}
-              title={`#${idx + 1} ${getSpecies(id).name} · ${getSpecies(id).types.join("/")}`}
+                    ? " border-ink bg-yellow-50"
+                    : " border-gray-200 bg-gray-50")
+              }
+              title={"#" + (idx + 1) + " " + getSpecies(id).name + " · " + getSpecies(id).types.join("/")}
             >
+              {isShiny && (
+                <span className="absolute right-0 top-0 text-[8px] leading-none text-red-500">★</span>
+              )}
               {status === "caught" ? (
                 <img
-                  src={urlSpriteCombat(id)}
+                  src={isShiny ? urlSpriteShiny(id) : urlSpriteCombat(id)}
                   alt=""
                   className="h-5 w-5 pixelated"
                   onError={(e) => {
-                    (e.currentTarget as HTMLImageElement).src = placeholderSprite(id);
+                    const el = e.currentTarget as HTMLImageElement;
+                    if (el.src.includes("-shiny")) el.src = urlSpriteCombat(id);
+                    else el.src = placeholderSprite(id);
                   }}
                 />
               ) : status === "seen" ? (
@@ -514,18 +583,76 @@ function DexTab(props: GamePanelsProps) {
               ) : (
                 <span className="text-[6px] text-ink/30">#{idx + 1}</span>
               )}
-            </div>
+            </button>
           );
         })}
       </div>
+
+      {/* Detail panel */}
+      {detail && detailMeta && (
+        <div className="border-2 border-ink bg-white p-1.5">
+          <div className="mb-1 font-bold uppercase">
+            {t(lang, "dex-detail")} · {t(lang, "dex-size")}
+          </div>
+          <div className="flex gap-2">
+            <div className="flex flex-col items-center">
+              <img
+                src={shinySet.has(detailId!) ? urlSpriteShiny(detail.id) : urlSpriteCombat(detail.id)}
+                alt=""
+                className={"h-10 w-10 pixelated " + (shinySet.has(detailId!) ? "shiny-glow" : "")}
+                onError={(e) => {
+                  const el = e.currentTarget as HTMLImageElement;
+                  if (el.src.includes("-shiny")) el.src = urlSpriteCombat(detail.id);
+                  else el.src = placeholderSprite(detail.id);
+                }}
+              />
+              <span className="mt-0.5 text-[6px] text-ink/50">
+                #{KANTO_151.indexOf(detail.id) + 1}
+              </span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1 font-bold uppercase">
+                <span>{localizedName(detail.id, lang)}</span>
+                {shinySet.has(detail.id) && (
+                  <span className="border-2 border-red-400 bg-red-100 px-0.5 text-red-600">★ {t(lang, "dex-shiny")}</span>
+                )}
+              </div>
+              <div className="mt-0.5 flex flex-wrap gap-0.5">
+                {detail.types.map((ty) => (
+                  <span key={ty} className={"border-2 border-ink px-1 font-bold uppercase " + (TYPE_COLORS[ty] ?? "bg-gray-200")}>
+                    {ty}
+                  </span>
+                ))}
+              </div>
+              <div className="mt-1 grid grid-cols-2 gap-x-2 gap-y-0.5 text-ink/80">
+                <span>{t(lang, "dex-height")}: {detailMeta.heightM.toFixed(1)} m</span>
+                <span>{t(lang, "dex-weight")}: {detailMeta.weightKg.toFixed(1)} kg</span>
+                <span>
+                  {t(lang, "dex-rate")}: {detail.catchRate}/255 · {rarityLabel(dexRarity(detail.catchRate))}
+                </span>
+                <span>
+                  {t(lang, "dex-caught")}:{" "}
+                  {save.pokedex[detail.id] === "caught" ? "✓" : save.pokedex[detail.id] === "seen" ? t(lang, "dex-seen") : t(lang, "dex-unknown")}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="mt-1 border-t-2 border-ink pt-1 text-ink/80">
+            <span className="font-bold uppercase">{t(lang, "dex-flavor")}: </span>
+            {detailMeta.flavor}
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center gap-2 text-ink/70">
-        <span className="border border-red-400 bg-red-100 px-1">Caught 🔴</span>
-        <span className="border border-ink bg-yellow-50 px-1">Seen 👁</span>
+        <span className="border border-red-400 bg-red-100 px-1">{t(lang, "dex-caught")} 🔴</span>
+        <span className="border border-ink bg-yellow-50 px-1">{t(lang, "dex-seen")} 👁</span>
+        <span className="border border-red-400 bg-red-100 px-1">★ {t(lang, "dex-shiny")}</span>
       </div>
 
       {/* Mythical section: Celebi appears once hatched (easter egg) */}
       <div className="border-2 border-ink bg-white p-1.5">
-        <div className="mb-1 font-bold uppercase">✨ {t(save.language, "mythical")}</div>
+        <div className="mb-1 font-bold uppercase">✨ {t(lang, "mythical")}</div>
         {save.pokedex.celebi === "caught" ? (
           <div className="flex items-center gap-2 border-2 border-ink bg-yellow-50 p-1">
             <img
@@ -537,10 +664,10 @@ function DexTab(props: GamePanelsProps) {
               }}
             />
             <div className="flex-1">
-              <div className="font-bold uppercase">{t(save.language, "celebi-name")}</div>
-              <div className="text-ink/70">{t(save.language, "egg-flavor")}</div>
+              <div className="font-bold uppercase">{t(lang, "celebi-name")}</div>
+              <div className="text-ink/70">{t(lang, "egg-flavor")}</div>
             </div>
-            <span className="text-ink/60">✓ {t(save.language, "caught-label")}</span>
+            <span className="text-ink/60">✓ {t(lang, "caught-label")}</span>
           </div>
         ) : (
           <div className="flex items-center gap-2 border-2 border-ink bg-gray-50 p-1">

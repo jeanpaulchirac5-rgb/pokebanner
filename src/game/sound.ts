@@ -40,7 +40,8 @@ export type SfxName =
   | "weather-rain"
   | "weather-snow"
   | "weather-starry"
-  | "weather-clear";
+  | "weather-clear"
+  | "milestone";
 
 export type BgmBiome = "plains" | "forest" | "cave";
 
@@ -300,6 +301,14 @@ export const SFX_PATTERNS: Record<SfxName, Tone[]> = {
     { note: "C5", start: 0, dur: 0.1, type: "triangle", vol: 0.32 },
     { note: "E5", start: 0.1, dur: 0.1, type: "triangle", vol: 0.32 },
     { note: "G5", start: 0.2, dur: 0.16, type: "triangle", vol: 0.32 },
+  ],
+  // Codex milestone fanfare — rising fifth arpeggio
+  milestone: [
+    { note: "C5", start: 0, dur: 0.09, type: "square", vol: 0.3 },
+    { note: "E5", start: 0.09, dur: 0.09, type: "square", vol: 0.3 },
+    { note: "G5", start: 0.18, dur: 0.09, type: "square", vol: 0.3 },
+    { note: "C6", start: 0.27, dur: 0.2, type: "triangle", vol: 0.34 },
+    { note: "E6", start: 0.47, dur: 0.22, type: "triangle", vol: 0.3 },
   ],
   // low-HP warning — urgent triple beep
   lowhp: [

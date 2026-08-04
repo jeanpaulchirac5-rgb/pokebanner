@@ -1,6 +1,6 @@
 {
   "name": "poke-banner-desktop",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "private": true,
   "description": "Electron shell that docks the 60px Poke-Banner above the Windows taskbar; transparent strip floats the scene over the wallpaper, with automatic updates via GitHub Releases.",
   "main": "main.cjs",

@@ -16,8 +16,10 @@ import { useEffect, useRef, useState } from "react";
 import {
   BIOMES,
   CHAMPIONS,
+  DEX_MILESTONES,
   ITEMS,
   TUNING,
+  getDexMeta,
 } from "./constants";
 import {
   ballWobbleSec,
@@ -60,7 +62,9 @@ import {
   expShare,
   makePokemon,
   makeWildEnemy,
+  dexMilestonesEarned,
   markPokedex,
+  markShinyCaught,
   nextEncounterDelay,
   normalizeSave,
   pickupGroundItem,
@@ -962,15 +966,48 @@ export default function PokemonBanner() {
       return;
     }
     const mon = { ...target, hp: Math.max(1, target.hp) };
+    const caughtBefore = Object.values(s.save.pokedex).filter((v) => v === "caught").length;
     s.save = normalizeSave({
       ...s.save,
       pc: addToPc(s.save.pc, mon),
       team: s.save.team.length < TUNING.teamMax ? addToTeam(s.save.team, mon) : s.save.team,
       pokedex: markPokedex(s.save.pokedex, mon.speciesId, "caught"),
+      shinyCaught: mon.shiny
+        ? markShinyCaught(s.save.shinyCaught ?? [], mon.speciesId)
+        : s.save.shinyCaught,
       money: s.save.money + 5,
     });
-    s.message = tr("captured", { mon: trName(mon.speciesId) });
-    s.messageUntil = Date.now() + 2200;
+    const caughtAfter = Object.values(s.save.pokedex).filter((v) => v === "caught").length;
+    const newlyEarned = dexMilestonesEarned(caughtAfter).filter(
+      (p) => !dexMilestonesEarned(caughtBefore).includes(p),
+    );
+    if (newlyEarned.length > 0) {
+      const m = DEX_MILESTONES.find((x) => x.pct === newlyEarned[0]);
+      if (m) {
+        s.save = normalizeSave({
+          ...s.save,
+          money: s.save.money + m.money,
+          inventory: {
+            ...s.save.inventory,
+            [m.item]: (s.save.inventory[m.item] ?? 0) + m.qty,
+          },
+        });
+        playSfx("milestone");
+        s.message = tr("dex-milestone-reward", {
+          badge: m.pct + "%",
+          money: m.money,
+          item: m.qty + "× " + localizedItemName(m.item, s.save.language),
+        });
+        s.messageUntil = Date.now() + 2600;
+      }
+    } else if (mon.shiny) {
+      playSfx("shiny");
+      s.message = tr("shiny-registered", { mon: trName(mon.speciesId) });
+      s.messageUntil = Date.now() + 2200;
+    } else {
+      s.message = tr("captured", { mon: trName(mon.speciesId) });
+      s.messageUntil = Date.now() + 2200;
+    }
     s.phase = "victory";
     s.pauseLeft = 2400;
     s.battle = null;

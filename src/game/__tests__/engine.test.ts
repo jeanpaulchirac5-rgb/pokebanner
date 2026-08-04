@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   BIOMES,
+  DEX_META,
+  KANTO_151,
   MOVES,
   ROCKET_POOL,
   WILD_MOVES,
@@ -36,7 +38,10 @@ import {
   isStarterOrEvolution,
   lcg,
   makePokemon,
+  dexMilestonesEarned,
+  dexRarity,
   markPokedex,
+  markShinyCaught,
   marketValueOf,
   migrateV1,
   nextEncounterDelay,
@@ -1356,5 +1361,37 @@ describe("cheatScore — anti-cheat save analysis", () => {
     expect(createSave("squirtle").language).toBe("en");
     expect(normalizeSave({ version: 2, team: [], pc: [], inventory: {}, pokedex: {} }).language).toBe("en");
     expect(normalizeSave({ ...createSave("charmander"), language: "fr" }).language).toBe("fr");
+  });
+});
+
+describe("codex: shiny caught tracking", () => {
+  it("markShinyCaught dedupes and appends", () => {
+    expect(markShinyCaught([], "pikachu")).toEqual(["pikachu"]);
+    expect(markShinyCaught(["pikachu"], "pikachu")).toEqual(["pikachu"]);
+    expect(markShinyCaught(["pikachu"], "pidgey")).toEqual(["pikachu", "pidgey"]);
+  });
+
+  it("normalizeSave migrates shinyCaught and createSave seeds it empty", () => {
+    expect(createSave("squirtle").shinyCaught).toEqual([]);
+    expect(normalizeSave({ ...createSave("squirtle"), shinyCaught: ["mew"] }).shinyCaught).toEqual(["mew"]);
+    expect(normalizeSave({ ...createSave("squirtle"), shinyCaught: "nope" }).shinyCaught).toEqual([]);
+  });
+});
+
+describe("codex: milestones and rarity", () => {
+  it("dexMilestonesEarned is monotonic and threshold-based", () => {
+    // 151 total: 25% ≈ 38, 50% ≈ 76, 75% ≈ 114, 100% = 151
+    expect(dexMilestonesEarned(0)).toEqual([]);
+    expect(dexMilestonesEarned(37)).toEqual([]);
+    expect(dexMilestonesEarned(38)).toContain(25);
+    expect(dexMilestonesEarned(76)).toEqual([25, 50]);
+    expect(dexMilestonesEarned(151)).toEqual([25, 50, 75, 100]);
+  });
+
+  it("dexRarity bands catch rates", () => {
+    expect(dexRarity(255)).toBe("common");
+    expect(dexRarity(190)).toBe("uncommon");
+    expect(dexRarity(60)).toBe("rare");
+    expect(dexRarity(3)).toBe("mythic");
   });
 });

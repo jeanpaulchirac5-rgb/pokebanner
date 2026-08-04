@@ -8,6 +8,7 @@ import {
   BIOMES,
   CENTER_SERVICES,
   CHAMPIONS,
+  DEX_MILESTONES,
   EVOLUTIONS,
   GROUND_ITEM_WEIGHTS,
   ITEMS,
@@ -24,6 +25,7 @@ import {
 import type {
   BattleState,
   CenterServiceId,
+  DexRarity,
   Encounter,
   EncounterKind,
   Inventory,
@@ -764,6 +766,26 @@ export function markPokedex(
   return { ...pokedex, [speciesId]: status };
 }
 
+/** Adds a species id to the shiny-caught list (dedupes). Pure. */
+export function markShinyCaught(shinyCaught: string[], speciesId: string): string[] {
+  return shinyCaught.includes(speciesId) ? shinyCaught : [...shinyCaught, speciesId];
+}
+
+/** Milestone pcts earned so far for a caught count. Pure + monotonic. */
+export function dexMilestonesEarned(caught: number): number[] {
+  const total = dexSize();
+  const pct = total > 0 ? Math.floor((caught / total) * 100) : 0;
+  return DEX_MILESTONES.filter((m) => pct >= m.pct).map((m) => m.pct);
+}
+
+/** Rarity band derived from the gen-1 catch rate (higher = easier = common). */
+export function dexRarity(catchRate: number): DexRarity {
+  if (catchRate >= 200) return "common";
+  if (catchRate >= 120) return "uncommon";
+  if (catchRate >= 45) return "rare";
+  return "mythic";
+}
+
 // ---------------------------------------------------------------------------
 // Battle outcome bookkeeping
 // ---------------------------------------------------------------------------
@@ -1116,6 +1138,7 @@ export function createSave(starterSpeciesId: string): SaveData {
     inventory: { pokeball: 10, berry: 5 },
     money: 0,
     pokedex: { [starterSpeciesId]: "caught" },
+    shinyCaught: [],
     steps: 0,
     battlesWon: 0,
     championWins: 0,
@@ -1163,6 +1186,9 @@ export function normalizeSave(raw: unknown): SaveData {
     badges: Array.isArray(r.badges) ? (r.badges as string[]) : [],
     rocketsDefeated: Math.max(0, Math.floor(Number(r.rocketsDefeated) || 0)),
     shiniesSeen: Math.max(0, Math.floor(Number(r.shiniesSeen) || 0)),
+    shinyCaught: Array.isArray(r.shinyCaught)
+      ? (r.shinyCaught as unknown[]).filter((s): s is string => typeof s === "string")
+      : [],
     merchantVisitedCycle: Math.max(0, Math.floor(Number(r.merchantVisitedCycle) || 0)),
     startedAt: Number(r.startedAt) || Date.now(),
     lastSaveAt: Number(r.lastSaveAt) || Date.now(),

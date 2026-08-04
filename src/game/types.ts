@@ -97,6 +97,17 @@ export interface Pokedex {
   [speciesId: string]: PokedexStatus;
 }
 
+export interface DexEntry {
+  /** Height in meters. */
+  heightM: number;
+  /** Weight in kilograms. */
+  weightKg: number;
+  /** Short Pokédex flavor line (English flavor data). */
+  flavor: string;
+}
+
+export type DexRarity = "common" | "uncommon" | "rare" | "mythic";
+
 export interface SaveData {
   version: 2;
   starterSpeciesId: string;
@@ -113,6 +124,8 @@ export interface SaveData {
   badges: string[];
   rocketsDefeated: number;
   shiniesSeen: number;
+  /** Species ids caught in their Shiny variant (Codex tracking). */
+  shinyCaught: string[];
   /** Merchant appears after every 10 victories; track which cycle was visited. */
   merchantVisitedCycle: number;
   /** Epoch ms anchor for the 5-minute day/night clock. */

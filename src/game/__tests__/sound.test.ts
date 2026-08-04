@@ -57,6 +57,7 @@ describe("pattern data", () => {
       "evolve", "faint", "heal", "pickup", "shiny", "click",
       "lowhp", "xp", "switchin", "denied",
       "weather-rain", "weather-snow", "weather-starry", "weather-clear",
+      "milestone",
     ];
     for (const name of names) {
       const pattern = SFX_PATTERNS[name];
