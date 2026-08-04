@@ -95,6 +95,7 @@ const PANEL_PROPS = {
   onReset: noop,
   onClearDetails: noop,
   onSetLanguage: noop,
+  onSetDustTrail: noop,
 };
 
 describe("PokemonBanner render smoke", () => {
@@ -180,6 +181,7 @@ describe("GamePanels render smoke (every tab)", () => {
     "code",
     "news",
     "save",
+    "settings",
   ];
 
   beforeEach(() => {

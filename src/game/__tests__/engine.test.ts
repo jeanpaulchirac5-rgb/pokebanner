@@ -1112,6 +1112,15 @@ describe("time & saves", () => {
       normalizeSave({ version: 2, team: [], pc: [], inventory: {}, pokedex: {}, bgmEnabled: true })
         .bgmEnabled,
     ).toBe(true);
+    // Pre-toggle saves default to footstep dust ON; an explicit false survives.
+    expect(
+      normalizeSave({ version: 2, team: [], pc: [], inventory: {}, pokedex: {} }).dustTrail,
+    ).toBe(true);
+    expect(
+      normalizeSave({ version: 2, team: [], pc: [], inventory: {}, pokedex: {}, dustTrail: false })
+        .dustTrail,
+    ).toBe(false);
+    expect(createSave("bulbasaur").dustTrail).toBe(true);
   });
 
   it("migrateV1 converts the legacy single-pokémon save", () => {

@@ -73,6 +73,8 @@ jobs:
 
       # Installers + the auto-update feed (latest.yml + blockmaps) so the
       # installed app can find and download the new version via electron-updater.
+      # The custom body is PREPENDED to the auto-generated changelog, so every
+      # release gets a readable summary plus the full commit list.
       - name: Attach artifacts to the release
         uses: softprops/action-gh-release@v2
         with:
@@ -81,3 +83,31 @@ jobs:
             desktop/release/latest.yml
             desktop/release/*.blockmap
           generate_release_notes: true
+          body: |
+            ## Poke-Banner ${{ github.ref_name }}
+
+            A 60px pixel-art Pokémon RPG that lives in your Windows taskbar.
+
+            ### ✨ What's new in this release
+            - **Auto-updates** — installed builds now self-update via differential
+              blockmaps (only changed bytes download, not the whole installer)
+            - **In-banner update chip** — green *UPDATE READY — RESTART* indicator
+              right in the strip when a new version is downloaded
+            - **NEWS tab** — in-game changelog with an installed-vs-latest diff
+              banner and a differential-update explainer
+            - **Portable builds** — amber *PORTABLE — MANUAL UPDATE* chip that
+              opens this page (portable exes can't self-update)
+            - **Localization** — full UI in 5 languages: EN / FR / DE / ES / 日本語
+            - **Desktop transparency** — blue sky in the browser, transparent over
+              the wallpaper in the shell
+            - **Code-signing** — Azure Trusted Signing hooks in CI (when secrets
+              are configured)
+
+            ### 🖥 Downloads
+            - `Poke-Banner-Setup-<version>.exe` — installer (auto-updates)
+            - `Poke-Banner-Portable-<version>.exe` — portable, no install needed
+
+            Saves are stored locally and survive updates (v1 → v2 migration).
+
+            ---
+            Full changelog:

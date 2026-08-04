@@ -6,8 +6,13 @@ import {
   backdropSvg,
   celestialForPhase,
   cloudsSvg,
+  combatPoseClass,
+  flinchClass,
   groundSvg,
   idleAnimClass,
+  walkAnimClass,
+  walkDustFor,
+  DUST_LEVEL_PX,
   moonSvg,
   moveFxById,
   moveFxByMove,
@@ -210,16 +215,205 @@ describe("idle animation classes", () => {
   });
 });
 
+describe("walk animation classes (per-species gait)", () => {
+  it("gives iconic species distinct signature strides", () => {
+    expect(walkAnimClass("pikachu")).toBe("walk-hop");
+    expect(walkAnimClass("bulbasaur")).toBe("walk-nod");
+    expect(walkAnimClass("squirtle")).toBe("walk-waddle");
+    expect(walkAnimClass("gengar")).toBe("walk-glide");
+    expect(walkAnimClass("pidgey")).toBe("walk-flutter");
+    expect(walkAnimClass("onix")).toBe("walk-rock");
+    expect(walkAnimClass("charmander")).toBe("walk-hop");
+  });
+
+  it("walk gaits differ from the idle classes (movement ≠ standing)", () => {
+    // Same species, different animation while walking vs standing still.
+    expect(walkAnimClass("squirtle")).not.toBe(idleAnimClass("squirtle"));
+    expect(walkAnimClass("gengar")).not.toBe(idleAnimClass("gengar"));
+    expect(walkAnimClass("pidgey")).not.toBe(idleAnimClass("pidgey"));
+    expect(walkAnimClass("onix")).not.toBe(idleAnimClass("onix"));
+    expect(walkAnimClass("charmander")).not.toBe(idleAnimClass("charmander"));
+  });
+
+  it("distinct species get distinct walks (not one universal sway)", () => {
+    // The user request: no universal animation — each species moves its own
+    // way. Iconic species must not all collapse to the fallback sway.
+    const iconic = [
+      "pikachu",
+      "rattata",
+      "pidgey",
+      "zubat",
+      "geodude",
+      "ekans",
+      "voltorb",
+      "gyarados",
+      "snorlax",
+      "hitmonlee",
+    ];
+    const classes = new Set(iconic.map((id) => walkAnimClass(id)));
+    expect(classes.size).toBeGreaterThan(4);
+    expect(classes.has("walk-sway")).toBe(false); // none fall back
+  });
+
+  it("falls back by type for species without a curated gait", () => {
+    // Poison → slither, water → waddle, flying → flutter, rock → rock.
+    expect(walkAnimClass("missingmon")).toBe("walk-sway");
+    // These are curated in WALK_ANIM_CURATED, so they should NOT fall back.
+    expect(walkAnimClass("ekans")).toBe("walk-slither");
+    expect(walkAnimClass("dratini")).toBe("walk-slither");
+    expect(walkAnimClass("ditto")).toBe("walk-bounce");
+    expect(walkAnimClass("koffing")).toBe("walk-glide");
+  });
+
+  it("covers every Kanto species with a valid walk class", () => {
+    const valid = new Set([
+      "walk-sway",
+      "walk-hop",
+      "walk-trot",
+      "walk-nod",
+      "walk-waddle",
+      "walk-glide",
+      "walk-rock",
+      "walk-shuffle",
+      "walk-flutter",
+      "walk-crawl",
+      "walk-slither",
+      "walk-strut",
+      "walk-bounce",
+    ]);
+    for (const id of KANTO_151) {
+      expect(valid.has(walkAnimClass(id))).toBe(true);
+    }
+  });
+});
+
+describe("walk dust by gait (per-movement-style puffs)", () => {
+  it("gliders and floaters kick up no dust at all", () => {
+    expect(walkDustFor("walk-glide").level).toBe(0);
+  });
+
+  it("light-footed gaits leave small puffs", () => {
+    for (const gait of ["walk-hop", "walk-nod", "walk-waddle", "walk-flutter", "walk-sway"]) {
+      expect(walkDustFor(gait).level).toBe(1);
+    }
+  });
+
+  it("ground-scraping gaits drag a medium trail", () => {
+    for (const gait of ["walk-crawl", "walk-slither", "walk-strut"]) {
+      expect(walkDustFor(gait).level).toBe(2);
+    }
+  });
+
+  it("heavy/lurching gaits throw large puffs", () => {
+    for (const gait of ["walk-rock", "walk-trot", "walk-shuffle", "walk-bounce"]) {
+      expect(walkDustFor(gait).level).toBe(3);
+    }
+  });
+
+  it("unknown gaits fall back to light dust", () => {
+    expect(walkDustFor("walk-nonexistent")).toEqual({ level: 1, intervalMs: 800 });
+  });
+
+  it("puff pixel sizes scale with the dust level", () => {
+    expect(DUST_LEVEL_PX[0]).toBe(0);
+    expect(DUST_LEVEL_PX[1]).toBeGreaterThan(0);
+    expect(DUST_LEVEL_PX[2]).toBeGreaterThan(DUST_LEVEL_PX[1]);
+    expect(DUST_LEVEL_PX[3]).toBeGreaterThan(DUST_LEVEL_PX[2]);
+  });
+
+  it("every walk gait resolves to a real dust spec", () => {
+    const gaits = [
+      "walk-hop", "walk-trot", "walk-nod", "walk-waddle", "walk-glide",
+      "walk-rock", "walk-shuffle", "walk-flutter", "walk-crawl",
+      "walk-slither", "walk-strut", "walk-bounce", "walk-sway",
+    ];
+    const levels = gaits.map((g) => walkDustFor(g).level);
+    expect(levels).toContain(0); // glide: none
+    expect(levels).toContain(3); // lurching: large
+    expect(levels).toContain(1); // light: small
+    expect(new Set(levels).size).toBeGreaterThan(2); // not one-size-fits-all
+  });
+});
+
+describe("combat pose classes (per-species battle stance)", () => {
+  it("iconic species hold their signature fighting pose", () => {
+    expect(combatPoseClass("pikachu")).toBe("pose-ready");
+    expect(combatPoseClass("gengar")).toBe("pose-hover");
+    expect(combatPoseClass("onix")).toBe("pose-coil");
+    expect(combatPoseClass("snorlax")).toBe("pose-hunker");
+    expect(combatPoseClass("bulbasaur")).toBe("pose-lean");
+    expect(combatPoseClass("charmander")).toBe("pose-rear");
+    expect(combatPoseClass("squirtle")).toBe("pose-crouch");
+    expect(combatPoseClass("charizard")).toBe("pose-hover");
+    expect(combatPoseClass("machamp")).toBe("pose-ready");
+    expect(combatPoseClass("rapidash")).toBe("pose-rear");
+  });
+
+  it("the battle pose is distinct from idle and walk animations", () => {
+    for (const id of ["pikachu", "gengar", "squirtle", "bulbasaur", "onix"]) {
+      expect(combatPoseClass(id)).not.toBe(idleAnimClass(id));
+      expect(combatPoseClass(id)).not.toBe(walkAnimClass(id));
+    }
+  });
+
+  it("falls back to a ready stance for unknown species", () => {
+    expect(combatPoseClass("missingmon")).toBe("pose-ready");
+  });
+
+  it("every Gen-1 species resolves to a valid registered pose", () => {
+    const VALID = new Set([
+      "pose-ready", "pose-crouch", "pose-lean", "pose-coil",
+      "pose-rear", "pose-hover", "pose-sway", "pose-hunker",
+    ]);
+    for (const id of KANTO_151) {
+      expect(VALID.has(combatPoseClass(id))).toBe(true);
+    }
+  });
+
+  it("species get distinct poses (not one universal stance)", () => {
+    const iconic = ["pikachu", "gengar", "onix", "snorlax", "bulbasaur", "charmander", "squirtle", "ekans"];
+    const poses = new Set(iconic.map((id) => combatPoseClass(id)));
+    expect(poses.size).toBeGreaterThan(4);
+  });
+});
+describe("flinch classes (species-flavored crit recoil)", () => {
+  it("maps each combat pose family to its flinch variant", () => {
+    expect(flinchClass("pose-ready")).toBe("flinch-recoil");
+    expect(flinchClass("pose-crouch")).toBe("flinch-recoil");
+    expect(flinchClass("pose-hover")).toBe("flinch-wobble");
+    expect(flinchClass("pose-sway")).toBe("flinch-wobble");
+    expect(flinchClass("pose-hunker")).toBe("flinch-heave");
+    expect(flinchClass("pose-coil")).toBe("flinch-heave");
+    expect(flinchClass("pose-lean")).toBe("flinch-pitch");
+    expect(flinchClass("pose-rear")).toBe("flinch-pitch");
+  });
+
+  it("falls back to the sharp recoil for unknown poses", () => {
+    expect(flinchClass("pose-unknown")).toBe("flinch-recoil");
+  });
+
+  it("is consistent with the species combat poses", () => {
+    // The flinch keyed off the pose the species actually holds in battle.
+    expect(flinchClass(combatPoseClass("gengar"))).toBe("flinch-wobble");
+    expect(flinchClass(combatPoseClass("snorlax"))).toBe("flinch-heave");
+    expect(flinchClass(combatPoseClass("pikachu"))).toBe("flinch-recoil");
+    expect(flinchClass(combatPoseClass("charmander"))).toBe("flinch-pitch");
+  });
+});
+
 describe("sky generator", () => {
-  it("returns a valid 128×28 SVG data URI with clouds and birds", () => {
+  it("returns a valid 256×28 SVG data URI with clouds and birds", () => {
     const uri = skySvg(12345);
     expect(uri.startsWith("data:image/svg+xml")).toBe(true);
     const svg = decodeURIComponent(uri);
-    expect(svg).toContain('width="128"');
+    expect(svg).toContain('width="256"');
     expect(svg).toContain('height="28"');
     expect(svg).toContain('#ffffff'); // cloud puffs
     expect(svg).toContain('#1c1c1c'); // bird chevrons
     expect(svg).toContain('#cfd8dc'); // cloud under-shade
+    // A wider tile with five clouds — the sky is never a 128px repeating stamp.
+    expect((svg.match(/fill="#ffffff"/g) ?? []).length).toBeGreaterThanOrEqual(8);
+    expect((svg.match(/fill="#1c1c1c"/g) ?? []).length).toBeGreaterThanOrEqual(8);
   });
 
   it("is deterministic for a seed and varies across seeds", () => {
@@ -238,13 +432,13 @@ describe("sky generator", () => {
     const uri = cloudsSvg(12345);
     expect(uri.startsWith("data:image/svg+xml")).toBe(true);
     const svg = decodeURIComponent(uri);
-    expect(svg).toContain('width="128"');
+    expect(svg).toContain('width="256"');
     expect(svg).toContain('height="28"');
     // clouds + birds present…
     expect(svg).toContain('#ffffff');
     expect(svg).toContain('#1c1c1c');
     // …but no full-width gradient band rects → transparent background.
-    expect(svg).not.toMatch(/<rect width="128"/);
+    expect(svg).not.toMatch(/<rect width="256"/);
   });
 
   it("cloudsSvg mirrors skySvg's deterministic clouds for the same seed", () => {

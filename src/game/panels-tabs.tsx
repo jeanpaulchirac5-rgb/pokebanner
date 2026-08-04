@@ -20,12 +20,12 @@ import type { SaveData } from "./types";
 export function CodexTab(props: GamePanelsProps) {
   const lang = props.save.language;
   const SHORTCUTS: [string, string][] = [
-    ["M", "Mute / unmute all audio"],
-    ["N", "Toggle music (BGM) only — SFX keep playing"],
-    ["B", "Open the Bag"],
-    ["C", "Open the Poké Center"],
-    ["K", "Open the Marketplace"],
-    ["ESC", "Close panels"],
+    ["M", t(lang, "shortcut-mute")],
+    ["N", t(lang, "shortcut-bgm")],
+    ["B", t(lang, "shortcut-bag")],
+    ["C", t(lang, "shortcut-center")],
+    ["K", t(lang, "shortcut-market")],
+    ["ESC", t(lang, "shortcut-close")],
   ];
   return (
     <div className="space-y-2 text-[7px]">
@@ -55,12 +55,7 @@ export function CodexTab(props: GamePanelsProps) {
 
       <div className="border-2 border-ink bg-yellow-100 p-1.5">
         <div className="font-bold uppercase">🥚 {t(lang, "secret-waits")}</div>
-        <p className="mt-1 text-ink/80">
-          Somewhere beyond the 151, a time traveler sleeps in an egg. The
-          elders whisper it will hatch for the trainer who has earned every
-          badge, registered the full Kanto Pokédex, and sent Team Rocket
-          packing at least once. Keep your eyes on the sky.
-        </p>
+        <p className="mt-1 text-ink/80">{t(lang, "secret-waits-desc")}</p>
       </div>
     </div>
   );
@@ -395,4 +390,32 @@ function StatMini({ label, value }: { label: string; value: string }) {
 
 function saveStatsXp(save: SaveData): number {
   return save.team.reduce((sum, m) => sum + m.xp, 0);
+}
+
+// ---------------------------------------------------------------------------
+// Settings — preferences toggles (dust trail today; more later)
+// ---------------------------------------------------------------------------
+
+export function SettingsTab(props: GamePanelsProps) {
+  const lang = props.save.language;
+  const dustOn = props.save.dustTrail !== false;
+  return (
+    <div className="space-y-2 text-[7px]">
+      <div className="border-2 border-ink bg-white p-1.5">
+        <div className="mb-1 font-bold uppercase">⚙ {t(lang, "settings")}</div>
+        <div className="flex items-center justify-between gap-2 border-2 border-ink bg-gray-50 p-1">
+          <div>
+            <div className="font-bold uppercase">{t(lang, "dust-trail")}</div>
+            <div className="text-ink/60">{t(lang, "dust-trail-desc")}</div>
+          </div>
+          <button
+            className={`nb-btn !px-2 ${dustOn ? "bg-green-300" : "bg-gray-200"}`}
+            onClick={() => props.onSetDustTrail(!dustOn)}
+          >
+            {dustOn ? t(lang, "on") : t(lang, "off")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }

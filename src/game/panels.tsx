@@ -39,7 +39,7 @@ import type {
   Pokemon,
   SaveData,
 } from "./types";
-import { ArenaTab, CodexTab, NewsTab, SaveTab, ShopTab } from "./panels-tabs";
+import { ArenaTab, CodexTab, NewsTab, SaveTab, SettingsTab, ShopTab } from "./panels-tabs";
 
 export type PanelTab =
   | "items"
@@ -54,7 +54,8 @@ export type PanelTab =
   | "admin"
   | "code"
   | "news"
-  | "save";
+  | "save"
+  | "settings";
 
 export interface GamePanelsProps {
   save: SaveData;
@@ -80,6 +81,7 @@ export interface GamePanelsProps {
   onReset: () => void;
   onClearDetails: () => void;
   onSetLanguage: (lang: Language) => void;
+  onSetDustTrail: (on: boolean) => void;
 }
 
 const TABS: { id: PanelTab; label: string }[] = [
@@ -96,6 +98,7 @@ const TABS: { id: PanelTab; label: string }[] = [
   { id: "code", label: "CODEX" },
   { id: "news", label: "NEWS" },
   { id: "save", label: "SAVE" },
+  { id: "settings", label: "SETTINGS" },
 ];
 
 export function GamePanels(props: GamePanelsProps) {
@@ -133,6 +136,7 @@ export function GamePanels(props: GamePanelsProps) {
       {tab === "arena" && <ArenaTab {...props} />}      { tab === "code" && <CodexTab {...props} /> }
       { tab === "news" && <NewsTab {...props} /> }
       { tab === "save" && <SaveTab {...props} /> }
+      { tab === "settings" && <SettingsTab {...props} /> }
     </div>
   );
 }
@@ -533,10 +537,10 @@ function DexTab(props: GamePanelsProps) {
               }}
             />
             <div className="flex-1">
-              <div className="font-bold uppercase">Celebi — the time traveler</div>
-              <div className="text-ink/70">Psychic/Grass · hatched from the mysterious egg.</div>
+              <div className="font-bold uppercase">{t(save.language, "celebi-name")}</div>
+              <div className="text-ink/70">{t(save.language, "egg-flavor")}</div>
             </div>
-            <span className="text-ink/60">✓ Caught</span>
+            <span className="text-ink/60">✓ {t(save.language, "caught-label")}</span>
           </div>
         ) : (
           <div className="flex items-center gap-2 border-2 border-ink bg-gray-50 p-1">

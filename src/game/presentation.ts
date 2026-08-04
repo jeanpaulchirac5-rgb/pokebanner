@@ -115,6 +115,266 @@ export function idleAnimClass(speciesId: string): string {
   return "idle-sway";
 }
 
+// ---------------------------------------------------------------------------
+// Per-species WALK animation — the gait the leader and approaching wild
+// Pokémon use while MOVING (the idle classes above are for standing still).
+// Every species gets its own signature stride: a Rattata scuttles, a Pidgey
+// flutters, a Geodude lumbers, an Ekans slithers, a Voltorb bounces…
+// The classes (walk-hop / walk-trot / walk-nod / walk-waddle / walk-glide /
+// walk-rock / walk-shuffle / walk-flutter / walk-crawl / walk-slither /
+// walk-strut / walk-bounce / walk-sway) live in index.css and honor --flip.
+// ---------------------------------------------------------------------------
+
+const WALK_ANIM_CURATED: Record<string, string> = {
+  // starters + their evolutions
+  bulbasaur: "walk-nod", ivysaur: "walk-nod", venusaur: "walk-nod",
+  charmander: "walk-hop", charmeleon: "walk-hop", charizard: "walk-glide",
+  squirtle: "walk-waddle", wartortle: "walk-waddle", blastoise: "walk-rock",
+  // small bouncy mammals & rodents — quick two-step
+  pikachu: "walk-hop", raichu: "walk-hop", eevee: "walk-hop",
+  jolteon: "walk-hop", vaporeon: "walk-waddle", flareon: "walk-rock",
+  rattata: "walk-hop", raticate: "walk-hop", sandshrew: "walk-hop",
+  sandslash: "walk-hop", diglett: "walk-nod", dugtrio: "walk-nod",
+  meowth: "walk-hop", persian: "walk-hop", growlithe: "walk-hop",
+  arcanine: "walk-trot", ponyta: "walk-trot", rapidash: "walk-trot",
+  mankey: "walk-hop", primeape: "walk-hop", doduo: "walk-nod",
+  dodrio: "walk-nod", jigglypuff: "walk-waddle", wigglytuff: "walk-waddle",
+  clefairy: "walk-waddle", clefable: "walk-waddle", voltorb: "walk-bounce",
+  electrode: "walk-bounce", cubone: "walk-hop", marowak: "walk-rock",
+  hitmonlee: "walk-strut", hitmonchan: "walk-strut", tauros: "walk-trot",
+  "nidoran-f": "walk-hop", "nidoran-m": "walk-hop", nidorina: "walk-hop",
+  nidorino: "walk-hop", vulpix: "walk-hop", ninetales: "walk-trot",
+  // wobbly water dwellers
+  poliwag: "walk-waddle", poliwhirl: "walk-waddle", poliwrath: "walk-rock",
+  tentacool: "walk-waddle", tentacruel: "walk-waddle", shellder: "walk-waddle",
+  cloyster: "walk-rock", horsea: "walk-waddle", seadra: "walk-waddle",
+  goldeen: "walk-waddle", seaking: "walk-waddle", staryu: "walk-glide",
+  starmie: "walk-glide", lapras: "walk-shuffle", psyduck: "walk-waddle",
+  golduck: "walk-waddle", slowpoke: "walk-shuffle", slowbro: "walk-waddle",
+  krabby: "walk-crawl", kingler: "walk-crawl", seel: "walk-waddle",
+  dewgong: "walk-waddle", magikarp: "walk-crawl", gyarados: "walk-slither",
+  omanyte: "walk-crawl", omastar: "walk-rock", kabuto: "walk-crawl",
+  kabutops: "walk-strut",
+  // leafy nodders & creeping bugs
+  oddish: "walk-nod", gloom: "walk-nod", vileplume: "walk-nod",
+  bellsprout: "walk-nod", weepinbell: "walk-nod", victreebel: "walk-nod",
+  exeggcute: "walk-bounce", exeggutor: "walk-nod", tangela: "walk-crawl",
+  caterpie: "walk-crawl", metapod: "walk-crawl", weedle: "walk-crawl",
+  kakuna: "walk-crawl", paras: "walk-crawl", parasect: "walk-crawl",
+  venonat: "walk-crawl",
+  // levitators & spooks
+  gastly: "walk-glide", haunter: "walk-glide", gengar: "walk-glide",
+  abra: "walk-glide", kadabra: "walk-glide", alakazam: "walk-glide",
+  magnemite: "walk-glide", magneton: "walk-glide", mewtwo: "walk-glide",
+  mew: "walk-glide", celebi: "walk-glide", koffing: "walk-glide",
+  weezing: "walk-glide", drowzee: "walk-shuffle", hypno: "walk-shuffle",
+  // fluttering wings
+  pidgey: "walk-flutter", pidgeotto: "walk-flutter", pidgeot: "walk-flutter",
+  spearow: "walk-flutter", fearow: "walk-flutter", zubat: "walk-flutter",
+  golbat: "walk-flutter", butterfree: "walk-flutter", beedrill: "walk-flutter",
+  venomoth: "walk-flutter", scyther: "walk-flutter", farfetchd: "walk-strut",
+  aerodactyl: "walk-flutter", articuno: "walk-flutter", zapdos: "walk-flutter",
+  moltres: "walk-flutter",
+  // heavyweights
+  geodude: "walk-rock", graveler: "walk-rock", golem: "walk-rock",
+  onix: "walk-rock", rhyhorn: "walk-rock", rhydon: "walk-rock",
+  snorlax: "walk-shuffle", chansey: "walk-shuffle", kangaskhan: "walk-shuffle",
+  machop: "walk-strut", machoke: "walk-strut", machamp: "walk-strut",
+  nidoqueen: "walk-rock", nidoking: "walk-rock", pinsir: "walk-rock",
+  lickitung: "walk-shuffle",
+  // slithering serpents
+  ekans: "walk-slither", arbok: "walk-slither", dratini: "walk-slither",
+  dragonair: "walk-slither", dragonite: "walk-glide",
+  // misc strutters & springers
+  grimer: "walk-crawl", muk: "walk-crawl", ditto: "walk-bounce",
+  "mr-mime": "walk-strut", jynx: "walk-strut", electabuzz: "walk-strut",
+  magmar: "walk-strut", porygon: "walk-glide",
+};
+
+/** Per-species WALK animation class (see WALK_ANIM_CURATED + type fallback). */
+export function walkAnimClass(speciesId: string): string {
+  const id = toEnglishId(speciesId);
+  const curated = WALK_ANIM_CURATED[id];
+  if (curated) return curated;
+  const types = SPECIES[id]?.types ?? [];
+  if (types.some((t) => t === "ghost" || t === "psychic")) return "walk-glide";
+  if (types.some((t) => t === "flying")) return "walk-flutter";
+  if (types.some((t) => t === "bug")) return "walk-crawl";
+  if (types.some((t) => t === "rock" || t === "ground")) return "walk-rock";
+  if (types.some((t) => t === "poison")) return "walk-slither";
+  if (types.some((t) => t === "water")) return "walk-waddle";
+  if (types.some((t) => t === "grass")) return "walk-nod";
+  if (types.some((t) => t === "electric" || t === "fire")) return "walk-hop";
+  if (types.some((t) => t === "fighting")) return "walk-strut";
+  return "walk-sway";
+}
+
+// ---------------------------------------------------------------------------
+// Per-gait walking dust — every movement style kicks up its own footprint.
+// A Gligar-style glider never touches the ground (no dust at all), a hopper
+// scuffs small puffs, a slithering Ekans drags a steady medium trail, and
+// the heavy/lurching gaits (Geodude lumbering, Snorlax shuffling, Tauros
+// trotting) throw up big thudding clouds. The banner sizes each puff from
+// the level and paces spawning from the interval.
+// ---------------------------------------------------------------------------
+
+export interface DustSpec {
+  /** 0 = no dust (gliders/floaters), 1 = small, 2 = medium, 3 = large. */
+  level: 0 | 1 | 2 | 3;
+  /** How often (ms) a puff kicks up while that gait plays. */
+  intervalMs: number;
+}
+
+const WALK_DUST: Record<string, DustSpec> = {
+  // Hovering gaits never touch the ground — no dust at all.
+  "walk-glide": { level: 0, intervalMs: 0 },
+  // Light-footed: flyers barely brush the grass; hoppers land on their toes.
+  "walk-flutter": { level: 1, intervalMs: 950 },
+  "walk-hop": { level: 1, intervalMs: 800 },
+  "walk-nod": { level: 1, intervalMs: 850 },
+  "walk-waddle": { level: 1, intervalMs: 800 },
+  // Ground-scraping bodies drag along, leaving a steady medium trail.
+  "walk-crawl": { level: 2, intervalMs: 650 },
+  "walk-slither": { level: 2, intervalMs: 600 },
+  "walk-strut": { level: 2, intervalMs: 650 },
+  // Heavy / lurching strides: big puffs, kicked up more often.
+  "walk-rock": { level: 3, intervalMs: 550 },
+  "walk-trot": { level: 3, intervalMs: 500 },
+  "walk-shuffle": { level: 3, intervalMs: 600 },
+  "walk-bounce": { level: 3, intervalMs: 450 },
+  // Default gentle gait: light small puffs.
+  "walk-sway": { level: 1, intervalMs: 800 },
+};
+
+/** Dust spec for a walk-gait class (default: light small puffs). */
+export function walkDustFor(walkClass: string): DustSpec {
+  return WALK_DUST[walkClass] ?? { level: 1, intervalMs: 800 };
+}
+
+/** Pixel size of a dust puff for a given level (0 = none rendered). */
+export const DUST_LEVEL_PX: Record<DustSpec["level"], number> = {
+  0: 0,
+  1: 6,
+  2: 8,
+  3: 11,
+};
+
+// ---------------------------------------------------------------------------
+// Per-species COMBAT pose — instead of standing rigidly in a single static
+// stance, each species holds its own fighting pose during battle: a crouching
+// Rattata coiled to spring, a rearing Rapidash, a hovering Gengar, a planted
+// Snorlax. Iconic species get curated poses; everything else falls back to an
+// archetype from its types, then to the ready stance. The classes
+// (pose-ready / pose-crouch / pose-lean / pose-coil / pose-rear /
+// pose-hover / pose-sway / pose-hunker) live in index.css and honor --flip.
+// ---------------------------------------------------------------------------
+
+const COMBAT_POSE_CURATED: Record<string, string> = {
+  // starters + their evolutions
+  bulbasaur: "pose-lean", ivysaur: "pose-lean", venusaur: "pose-hunker",
+  charmander: "pose-rear", charmeleon: "pose-rear", charizard: "pose-hover",
+  squirtle: "pose-crouch", wartortle: "pose-crouch", blastoise: "pose-hunker",
+  // small bouncy mammals & rodents
+  pikachu: "pose-ready", raichu: "pose-ready", eevee: "pose-ready",
+  jolteon: "pose-ready", vaporeon: "pose-sway", flareon: "pose-rear",
+  rattata: "pose-crouch", raticate: "pose-crouch", sandshrew: "pose-crouch",
+  sandslash: "pose-crouch", diglett: "pose-crouch", dugtrio: "pose-crouch",
+  meowth: "pose-crouch", persian: "pose-crouch", growlithe: "pose-crouch",
+  arcanine: "pose-rear", ponyta: "pose-rear", rapidash: "pose-rear",
+  mankey: "pose-ready", primeape: "pose-ready", doduo: "pose-ready",
+  dodrio: "pose-ready", jigglypuff: "pose-sway", wigglytuff: "pose-sway",
+  clefairy: "pose-sway", clefable: "pose-sway", cubone: "pose-ready",
+  marowak: "pose-hunker", voltorb: "pose-ready", electrode: "pose-ready",
+  tauros: "pose-rear", "nidoran-f": "pose-crouch", "nidoran-m": "pose-crouch",
+  nidorina: "pose-crouch", nidorino: "pose-crouch", vulpix: "pose-ready",
+  ninetales: "pose-rear",
+  // wobbly water dwellers
+  poliwag: "pose-sway", poliwhirl: "pose-sway", poliwrath: "pose-hunker",
+  tentacool: "pose-sway", tentacruel: "pose-sway", shellder: "pose-crouch",
+  cloyster: "pose-hunker", horsea: "pose-sway", seadra: "pose-sway",
+  goldeen: "pose-sway", seaking: "pose-sway", staryu: "pose-sway",
+  starmie: "pose-hover", lapras: "pose-sway", psyduck: "pose-sway",
+  golduck: "pose-sway", slowpoke: "pose-sway", slowbro: "pose-sway",
+  krabby: "pose-crouch", kingler: "pose-hunker", seel: "pose-sway",
+  dewgong: "pose-sway", magikarp: "pose-sway", gyarados: "pose-coil",
+  omanyte: "pose-sway", omastar: "pose-hunker", kabuto: "pose-crouch",
+  kabutops: "pose-ready",
+  // leafy nodders & creeping bugs
+  oddish: "pose-lean", gloom: "pose-lean", vileplume: "pose-lean",
+  bellsprout: "pose-lean", weepinbell: "pose-lean", victreebel: "pose-lean",
+  exeggcute: "pose-ready", exeggutor: "pose-lean", tangela: "pose-coil",
+  caterpie: "pose-crouch", metapod: "pose-hunker", weedle: "pose-crouch",
+  kakuna: "pose-hunker", paras: "pose-crouch", parasect: "pose-crouch",
+  venonat: "pose-crouch",
+  // levitators & spooks
+  gastly: "pose-hover", haunter: "pose-hover", gengar: "pose-hover",
+  abra: "pose-hover", kadabra: "pose-hover", alakazam: "pose-hover",
+  magnemite: "pose-hover", magneton: "pose-hover", mewtwo: "pose-hover",
+  mew: "pose-hover", celebi: "pose-hover", koffing: "pose-hover",
+  weezing: "pose-hover", drowzee: "pose-sway", hypno: "pose-sway",
+  // fluttering wings
+  pidgey: "pose-hover", pidgeotto: "pose-hover", pidgeot: "pose-hover",
+  spearow: "pose-hover", fearow: "pose-hover", zubat: "pose-hover",
+  golbat: "pose-hover", butterfree: "pose-hover", beedrill: "pose-hover",
+  venomoth: "pose-hover", scyther: "pose-ready", farfetchd: "pose-ready",
+  aerodactyl: "pose-hover", articuno: "pose-hover", zapdos: "pose-hover",
+  moltres: "pose-hover", dragonite: "pose-hover",
+  // heavyweights
+  geodude: "pose-hunker", graveler: "pose-hunker", golem: "pose-hunker",
+  onix: "pose-coil", rhyhorn: "pose-hunker", rhydon: "pose-hunker",
+  snorlax: "pose-hunker", chansey: "pose-sway", kangaskhan: "pose-hunker",
+  machop: "pose-ready", machoke: "pose-ready", machamp: "pose-ready",
+  nidoqueen: "pose-hunker", nidoking: "pose-hunker", pinsir: "pose-ready",
+  hitmonlee: "pose-ready", hitmonchan: "pose-ready",
+  // slithering serpents
+  ekans: "pose-coil", arbok: "pose-coil", dratini: "pose-coil",
+  dragonair: "pose-coil",
+  // misc strutters & springers
+  grimer: "pose-crouch", muk: "pose-hunker", ditto: "pose-ready",
+  "mr-mime": "pose-ready", jynx: "pose-ready", electabuzz: "pose-ready",
+  magmar: "pose-ready", porygon: "pose-hover", lickitung: "pose-sway",
+};
+
+/** Per-species COMBAT pose class (see COMBAT_POSE_CURATED + type fallback). */
+export function combatPoseClass(speciesId: string): string {
+  const id = toEnglishId(speciesId);
+  const curated = COMBAT_POSE_CURATED[id];
+  if (curated) return curated;
+  const types = SPECIES[id]?.types ?? [];
+  if (types.some((t) => t === "ghost" || t === "psychic" || t === "flying"))
+    return "pose-hover";
+  if (types.some((t) => t === "rock" || t === "ground")) return "pose-hunker";
+  if (types.some((t) => t === "fighting")) return "pose-ready";
+  if (types.some((t) => t === "poison")) return "pose-coil";
+  if (types.some((t) => t === "water")) return "pose-sway";
+  if (types.some((t) => t === "grass")) return "pose-lean";
+  if (types.some((t) => t === "fire" || t === "electric")) return "pose-rear";
+  if (types.some((t) => t === "bug")) return "pose-crouch";
+  return "pose-ready";
+}
+/**
+ * Flinch animation for a critical hit — a brief, species-flavored recoil on
+ * the sprite that takes the crit. Keyed off the species' combat pose (from
+ * combatPoseClass), so a hovering Gengar wobbles, a hunkered Snorlax heaves,
+ * and a springy Pikachu recoils. The classes (flinch-recoil / flinch-wobble /
+ * flinch-heave / flinch-pitch) live in index.css and honor --flip.
+ */
+const POSE_FLINCH: Record<string, string> = {
+  "pose-ready": "flinch-recoil",
+  "pose-crouch": "flinch-recoil",
+  "pose-hover": "flinch-wobble",
+  "pose-sway": "flinch-wobble",
+  "pose-hunker": "flinch-heave",
+  "pose-coil": "flinch-heave",
+  "pose-lean": "flinch-pitch",
+  "pose-rear": "flinch-pitch",
+};
+
+/** Flinch animation class for a combat-pose class (default: sharp recoil). */
+export function flinchClass(combatPose: string): string {
+  return POSE_FLINCH[combatPose] ?? "flinch-recoil";
+}
+
 /**
  * Per-move-type attack FX: a flat color + a chunky glyph used by the banner's
  * impact burst animation. Pure and deterministic so tests can pin the map.
@@ -376,38 +636,41 @@ export function skyColorFor(phase: SkyPhase): string {
  *  while walking. At night the clouds gray out and the birds vanish; at sunset
  *  they take on a warm tint. 128px wide × 28px tall, repeat-x, slowest
  *  parallax. */
-export function skySvg(seed = 0, phase: SkyPhase = "day"): string {
-  const W = 128;
+function skyTile(seed: number, phase: SkyPhase, withBands: boolean): string {
+  const W = 256;
   const H = 28;
   const pal = SKY_PALETTE[phase] ?? SKY_PALETTE.day;
   const parts: string[] = [];
   // Sky backdrop: hard pixel bands so the banner has a real sky gradient
-  // (not a flat key color). Band fills avoid the cloud/under-shade palette so
-  // tests that inspect cloud geometry stay unambiguous.
-  const stack = SKY_BANDS[phase] ?? SKY_BANDS.day;
-  const bandH = Math.floor(H / stack.length);
-  stack.forEach((fill, i) => {
-    parts.push(`<rect width="${W}" height="${bandH}" y="${i * bandH}" fill="${fill}"/>`);
-  });
+  // (not a flat key color). Skipped for the transparent desktop tile.
+  if (withBands) {
+    const stack = SKY_BANDS[phase] ?? SKY_BANDS.day;
+    const bandH = Math.floor(H / stack.length);
+    stack.forEach((fill, i) => {
+      parts.push(`<rect width="${W}" height="${bandH}" y="${i * bandH}" fill="${fill}"/>`);
+    });
+  }
   // LCG so a given seed always paints the same clouds/birds
   let s = (seed >>> 0) || 1;
   const rnd = () => {
     s = (s * 1664525 + 1013904223) >>> 0;
     return s / 0xffffffff;
   };
-  // three pixel clouds: puffs with a soft under-shade
-  for (let i = 0; i < 3; i++) {
-    const x = Math.floor(rnd() * (W - 26));
+  // five varied pixel clouds (14–26px puffs): a wider tile + more clouds so
+  // the pattern isn't obviously repeating across the banner
+  for (let i = 0; i < 5; i++) {
+    const w = 14 + Math.floor(rnd() * 12);
+    const x = Math.floor(rnd() * (W - w - 4));
     const y = 2 + Math.floor(rnd() * 12);
     parts.push(
-      `<rect x="${x + 3}" y="${y}" width="12" height="3" fill="${pal.cloud}"/>`,
-      `<rect x="${x}" y="${y + 2}" width="18" height="3" fill="${pal.cloud}"/>`,
-      `<rect x="${x}" y="${y + 5}" width="18" height="1" fill="${pal.shade}"/>`,
+      `<rect x="${x + 3}" y="${y}" width="${Math.floor(w * 0.6)}" height="3" fill="${pal.cloud}"/>`,
+      `<rect x="${x}" y="${y + 2}" width="${w}" height="3" fill="${pal.cloud}"/>`,
+      `<rect x="${x}" y="${y + 5}" width="${w}" height="1" fill="${pal.shade}"/>`,
     );
   }
-  // two pixel birds: dark "~" chevrons (birds fly home after sunset)
+  // three pixel birds: dark "~" chevrons (birds fly home after sunset)
   if (pal.bird) {
-    for (let i = 0; i < 2; i++) {
+    for (let i = 0; i < 3; i++) {
       const x = Math.floor(rnd() * (W - 18));
       const y = 3 + Math.floor(rnd() * 10);
       parts.push(
@@ -421,6 +684,14 @@ export function skySvg(seed = 0, phase: SkyPhase = "day"): string {
   return svgUri(W, H, parts.join(""));
 }
 
+/** Sky tile: a 256×28 pixel gradient (dark top → lighter horizon) with five
+ *  drifting pixel clouds + three birds. The wide tile + the sky-drift
+ *  animation (see index.css) mean the sky never looks like a static repeating
+ *  stamp: the clouds visibly travel and only repeat every 256px. */
+export function skySvg(seed = 0, phase: SkyPhase = "day"): string {
+  return skyTile(seed, phase, true);
+}
+
 /**
  * Clouds-and-birds ONLY sky tile (transparent background). Used by the
  * Electron desktop shell: the strip there is a transparent window, so the
@@ -429,40 +700,7 @@ export function skySvg(seed = 0, phase: SkyPhase = "day"): string {
  * a given seed paints the identical clouds in both modes.
  */
 export function cloudsSvg(seed = 0, phase: SkyPhase = "day"): string {
-  const W = 128;
-  const H = 28;
-  const pal = SKY_PALETTE[phase] ?? SKY_PALETTE.day;
-  const parts: string[] = [];
-  // LCG so a given seed always paints the same clouds/birds (mirrors skySvg)
-  let s = (seed >>> 0) || 1;
-  const rnd = () => {
-    s = (s * 1664525 + 1013904223) >>> 0;
-    return s / 0xffffffff;
-  };
-  // three pixel clouds: puffs with a soft under-shade
-  for (let i = 0; i < 3; i++) {
-    const x = Math.floor(rnd() * (W - 26));
-    const y = 2 + Math.floor(rnd() * 12);
-    parts.push(
-      `<rect x="${x + 3}" y="${y}" width="12" height="3" fill="${pal.cloud}"/>`,
-      `<rect x="${x}" y="${y + 2}" width="18" height="3" fill="${pal.cloud}"/>`,
-      `<rect x="${x}" y="${y + 5}" width="18" height="1" fill="${pal.shade}"/>`,
-    );
-  }
-  // two pixel birds: dark "~" chevrons (birds fly home after sunset)
-  if (pal.bird) {
-    for (let i = 0; i < 2; i++) {
-      const x = Math.floor(rnd() * (W - 18));
-      const y = 3 + Math.floor(rnd() * 10);
-      parts.push(
-        `<rect x="${x}" y="${y}" width="5" height="1" fill="${pal.bird}"/>`,
-        `<rect x="${x + 7}" y="${y}" width="5" height="1" fill="${pal.bird}"/>`,
-        `<rect x="${x + 5}" y="${y + 1}" width="1" height="1" fill="${pal.bird}"/>`,
-        `<rect x="${x + 11}" y="${y + 1}" width="1" height="1" fill="${pal.bird}"/>`,
-      );
-    }
-  }
-  return svgUri(W, H, parts.join(""));
+  return skyTile(seed, phase, false);
 }
 
 /** Small pixel sun — chunky disc with corner rays. Color shifts at sunset

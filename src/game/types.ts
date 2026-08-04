@@ -120,6 +120,8 @@ export interface SaveData {
   lastSaveAt: number;
   /** N-hotkey preference: BGM loop on/off (SFX unaffected). Persisted with the save. */
   bgmEnabled: boolean;
+  /** Settings toggle: footstep dust puffs behind walking Pokémon (default ON). */
+  dustTrail: boolean;
   /** Selected display language ("en" | "fr" | "de" | "es" | "ja"). */
   language: Language;
 }

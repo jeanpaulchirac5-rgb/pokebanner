@@ -199,12 +199,21 @@
   background-size: 128px 16px;
   animation: scenery-scroll 14s linear infinite;
 }
-/* sky: drifting pixel clouds + birds above the scenery, slowest drift
-   (paused by inline animationPlayState while the Pokémon isn't walking) */
+/* sky: drifting pixel clouds + birds above the scenery. The 256px tile with
+   five varied clouds scrolls via sky-drift so the sky is ALWAYS in motion —
+   even while the Pokémon stands still (not gated by animationPlayState). */
+@keyframes sky-drift {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: -256px 0;
+  }
+}
 .scenery-scroll-sky {
   background-repeat: repeat-x;
-  background-size: 128px 28px;
-  animation: scenery-scroll 22s linear infinite;
+  background-size: 256px 28px;
+  animation: sky-drift 16s linear infinite;
 }
 /* mid grass/props: 12px tile */
 .scenery-scroll {
@@ -715,6 +724,381 @@
 }
 .idle-flutter {
   animation: idle-flutter 0.8s steps(2) infinite;
+}
+
+/* ---------------------------------------------------------------------------
+   Walk gaits — the per-species MOVEMENT animation applied while the leader
+   (or an approaching wild Pokémon) is actually walking across the banner.
+   Each species gets its own signature stride via walkAnimClass() in
+   presentation.ts; every keyframe scales by --flip so the sprite keeps its
+   facing direction while the animation drives its transform.
+   --------------------------------------------------------------------------- */
+@keyframes walk-hop {
+  0%,
+  100% {
+    transform: scaleX(var(--flip, 1)) translateY(0);
+  }
+  30% {
+    transform: scaleX(var(--flip, 1)) translateY(-3.5px);
+  }
+  60% {
+    transform: scaleX(var(--flip, 1)) translateY(0);
+  }
+}
+.walk-hop {
+  animation: walk-hop 0.55s steps(2) infinite;
+}
+@keyframes walk-trot {
+  0%,
+  100% {
+    transform: scaleX(var(--flip, 1)) translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: scaleX(var(--flip, 1)) translateY(-2px) rotate(-2deg);
+  }
+  75% {
+    transform: scaleX(var(--flip, 1)) translateY(-2px) rotate(2deg);
+  }
+}
+.walk-trot {
+  animation: walk-trot 0.5s steps(2) infinite;
+}
+@keyframes walk-nod {
+  0%,
+  100% {
+    transform: scaleX(var(--flip, 1)) rotate(0deg) translateY(0);
+  }
+  30% {
+    transform: scaleX(var(--flip, 1)) rotate(-6deg) translateY(-1px);
+  }
+  70% {
+    transform: scaleX(var(--flip, 1)) rotate(6deg) translateY(-1px);
+  }
+}
+.walk-nod {
+  animation: walk-nod 0.6s ease-in-out infinite;
+}
+@keyframes walk-waddle {
+  0%,
+  100% {
+    transform: scaleX(var(--flip, 1)) rotate(0deg);
+  }
+  25% {
+    transform: scaleX(var(--flip, 1)) rotate(-7deg);
+  }
+  75% {
+    transform: scaleX(var(--flip, 1)) rotate(7deg);
+  }
+}
+.walk-waddle {
+  animation: walk-waddle 0.65s ease-in-out infinite;
+}
+@keyframes walk-glide {
+  0%,
+  100% {
+    transform: scaleX(var(--flip, 1)) translateY(0);
+  }
+  50% {
+    transform: scaleX(var(--flip, 1)) translateY(-3px);
+  }
+}
+.walk-glide {
+  animation: walk-glide 0.9s ease-in-out infinite;
+}
+@keyframes walk-rock {
+  0%,
+  100% {
+    transform: scaleX(var(--flip, 1)) rotate(0deg) translateY(0);
+  }
+  50% {
+    transform: scaleX(var(--flip, 1)) rotate(-2deg) translateY(1px);
+  }
+}
+.walk-rock {
+  animation: walk-rock 1s ease-in-out infinite;
+}
+@keyframes walk-shuffle {
+  0%,
+  100% {
+    transform: scaleX(var(--flip, 1)) translateY(0);
+  }
+  50% {
+    transform: scaleX(var(--flip, 1)) translateY(0.5px) rotate(-1.5deg);
+  }
+}
+.walk-shuffle {
+  animation: walk-shuffle 1.3s ease-in-out infinite;
+}
+@keyframes walk-flutter {
+  0%,
+  100% {
+    transform: scaleX(var(--flip, 1)) translateY(0) rotate(-3deg);
+  }
+  50% {
+    transform: scaleX(var(--flip, 1)) translateY(-2px) rotate(3deg);
+  }
+}
+.walk-flutter {
+  animation: walk-flutter 0.45s steps(2) infinite;
+}
+@keyframes walk-crawl {
+  0%,
+  100% {
+    transform: scaleX(var(--flip, 1)) translateY(0);
+  }
+  30% {
+    transform: scaleX(var(--flip, 1)) translateY(-1px) rotate(-3deg);
+  }
+  70% {
+    transform: scaleX(var(--flip, 1)) translateY(-1px) rotate(3deg);
+  }
+}
+.walk-crawl {
+  animation: walk-crawl 0.7s steps(3) infinite;
+}
+@keyframes walk-slither {
+  0%,
+  100% {
+    transform: scaleX(var(--flip, 1)) translateY(0) rotate(-4deg);
+  }
+  50% {
+    transform: scaleX(var(--flip, 1)) translateY(-1.5px) rotate(4deg);
+  }
+}
+.walk-slither {
+  animation: walk-slither 0.8s ease-in-out infinite;
+}
+@keyframes walk-strut {
+  0%,
+  100% {
+    transform: scaleX(var(--flip, 1)) translateY(0) rotate(-5deg);
+  }
+  50% {
+    transform: scaleX(var(--flip, 1)) translateY(-2px) rotate(5deg);
+  }
+}
+.walk-strut {
+  animation: walk-strut 0.6s steps(2) infinite;
+}
+@keyframes walk-bounce {
+  0%,
+  100% {
+    transform: scaleX(var(--flip, 1)) translateY(0) scaleY(1);
+  }
+  40% {
+    transform: scaleX(var(--flip, 1)) translateY(-4px) scaleY(0.9);
+  }
+}
+.walk-bounce {
+  animation: walk-bounce 0.6s steps(3) infinite;
+}
+@keyframes walk-sway {
+  0%,
+  100% {
+    transform: scaleX(var(--flip, 1)) translateY(0) rotate(-3deg);
+  }
+  50% {
+    transform: scaleX(var(--flip, 1)) translateY(-1.5px) rotate(3deg);
+  }
+}
+.walk-sway {
+  animation: walk-sway 0.8s ease-in-out infinite;
+}
+
+/* ---------------------------------------------------------------------------
+   Combat poses — the per-species battle stance (combatPoseClass() in
+   presentation.ts) that replaces the old rigid static sprite stance. Each
+   species holds its own fighting pose while the battle is active: a crouching
+   Rattata coils to spring, a rearing Rapidash balks, a hovering Gengar
+   bobs, a planted Snorlax hunkers. The keyframes scale by --flip so both
+   sides keep their facing direction, and they're subtle so the lunge/HP
+   effects stay readable on top.
+   --------------------------------------------------------------------------- */
+@keyframes pose-ready {
+  0%,
+  100% {
+    transform: scaleX(var(--flip, 1)) translateY(0) rotate(-1deg);
+  }
+  50% {
+    transform: scaleX(var(--flip, 1)) translateY(-1.5px) rotate(1.5deg);
+  }
+}
+.pose-ready {
+  animation: pose-ready 0.7s ease-in-out infinite;
+}
+@keyframes pose-crouch {
+  0%,
+  100% {
+    transform: scaleX(var(--flip, 1)) translateY(0) scaleY(1);
+  }
+  50% {
+    transform: scaleX(var(--flip, 1)) translateY(1px) scaleY(0.9);
+  }
+}
+.pose-crouch {
+  animation: pose-crouch 1s ease-in-out infinite;
+}
+@keyframes pose-lean {
+  0%,
+  100% {
+    transform: scaleX(var(--flip, 1)) rotate(-3deg) translateY(0);
+  }
+  50% {
+    transform: scaleX(var(--flip, 1)) rotate(3deg) translateY(-1px);
+  }
+}
+.pose-lean {
+  animation: pose-lean 1.2s ease-in-out infinite;
+}
+@keyframes pose-coil {
+  0%,
+  100% {
+    transform: scaleX(var(--flip, 1)) rotate(-2deg) translateY(0);
+  }
+  50% {
+    transform: scaleX(var(--flip, 1)) rotate(3.5deg) translateY(-1px);
+  }
+}
+.pose-coil {
+  animation: pose-coil 1.1s ease-in-out infinite;
+}
+@keyframes pose-rear {
+  0%,
+  100% {
+    transform: scaleX(var(--flip, 1)) translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: scaleX(var(--flip, 1)) translateY(-2.5px) rotate(-4deg);
+  }
+}
+.pose-rear {
+  animation: pose-rear 0.9s steps(2) infinite;
+}
+@keyframes pose-hover {
+  0%,
+  100% {
+    transform: scaleX(var(--flip, 1)) translateY(0);
+  }
+  50% {
+    transform: scaleX(var(--flip, 1)) translateY(-3px);
+  }
+}
+.pose-hover {
+  animation: pose-hover 1.8s ease-in-out infinite;
+}
+@keyframes pose-sway {
+  0%,
+  100% {
+    transform: scaleX(var(--flip, 1)) rotate(-4deg);
+  }
+  50% {
+    transform: scaleX(var(--flip, 1)) rotate(4deg);
+  }
+}
+.pose-sway {
+  animation: pose-sway 1.3s ease-in-out infinite;
+}
+@keyframes pose-hunker {
+  0%,
+  100% {
+    transform: scaleX(var(--flip, 1)) translateY(0);
+  }
+  50% {
+    transform: scaleX(var(--flip, 1)) translateY(0.8px) scaleY(0.95);
+  }
+}
+.pose-hunker {
+  animation: pose-hunker 2s ease-in-out infinite;
+}
+
+/* Crit flinch — a brief, species-pose-flavored recoil on the sprite that
+   takes a critical hit (flinchClass() in presentation.ts). Single-shot;
+   React toggles the class on for ~0.4s. Honors --flip like the poses. */
+@keyframes flinch-recoil {
+  0%,
+  100% {
+    transform: scaleX(var(--flip, 1)) translateX(0);
+  }
+  25% {
+    transform: scaleX(var(--flip, 1)) translateX(-4px);
+  }
+  50% {
+    transform: scaleX(var(--flip, 1)) translateX(3px);
+  }
+  75% {
+    transform: scaleX(var(--flip, 1)) translateX(-2px);
+  }
+}
+.flinch-recoil {
+  animation: flinch-recoil 0.38s steps(2);
+}
+@keyframes flinch-wobble {
+  0%,
+  100% {
+    transform: scaleX(var(--flip, 1)) rotate(0deg);
+  }
+  30% {
+    transform: scaleX(var(--flip, 1)) rotate(-9deg);
+  }
+  65% {
+    transform: scaleX(var(--flip, 1)) rotate(6deg);
+  }
+}
+.flinch-wobble {
+  animation: flinch-wobble 0.42s ease-in-out;
+}
+@keyframes flinch-heave {
+  0%,
+  100% {
+    transform: scaleX(var(--flip, 1)) translateY(0) scaleY(1);
+  }
+  35% {
+    transform: scaleX(var(--flip, 1)) translateY(2.5px) scaleY(0.9);
+  }
+  70% {
+    transform: scaleX(var(--flip, 1)) translateY(-1px);
+  }
+}
+.flinch-heave {
+  animation: flinch-heave 0.45s ease-in-out;
+}
+@keyframes flinch-pitch {
+  0%,
+  100% {
+    transform: scaleX(var(--flip, 1)) rotate(0deg);
+  }
+  40% {
+    transform: scaleX(var(--flip, 1)) rotate(11deg) translateY(-2px);
+  }
+}
+.flinch-pitch {
+  animation: flinch-pitch 0.4s ease-in;
+}
+
+/* Ground pickup item: gentle bob + a sparkle so it's unmistakably tappable */
+@keyframes item-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+.item-bob {
+  animation: item-bob 0.9s ease-in-out infinite;
+}
+@keyframes item-shine {
+  0%,
+  100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.item-shine {
+  animation: item-shine 0.7s steps(2) infinite;
 }
 
 /* ---------------------------------------------------------------------------

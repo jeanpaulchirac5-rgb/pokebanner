@@ -80,6 +80,9 @@ import {
   backdropSvg,
   celestialForPhase,
   cloudsSvg,
+  combatPoseClass,
+  DUST_LEVEL_PX,
+  flinchClass,
   groundSvg,
   idleAnimClass,
   moveFxByName,
@@ -92,6 +95,8 @@ import {
   urlSpriteCombat,
   urlSpriteShiny,
   urlSpriteWalking,
+  walkAnimClass,
+  walkDustFor,
 } from "./presentation";
 import {
   LANG_LABELS,
@@ -167,6 +172,8 @@ interface GameRef {
   battle: { leader: Pokemon; enemy: Pokemon; enemyChampionId?: string } | null;
   hpFlash: "leader" | "enemy" | null;
   lunge: "leader" | "enemy" | null;
+  /** Critical-hit flinch: brief species-flavored recoil on the hit sprite. */
+  flinch: "leader" | "enemy" | null;
   notif: { color: "red" | "blue"; key: number } | null;
   lastStepBiome: number;
   /** Visible attack animation: colored impact burst + move name popup. */
@@ -184,8 +191,8 @@ interface GameRef {
   captureAnim: { key: number; shakes: number; success: boolean } | null;
   /** Level-up sparkle burst at the leader. */
   levelUpFx: { key: number } | null;
-  /** Dust puffs kicked up behind the walking leader. */
-  dust: { key: number; x: number }[];
+  /** Dust puffs kicked up behind the walking leader / approaching enemy. */
+  dust: { key: number; x: number; size: number; side: "leader" | "enemy" }[];
   dustTimer: number;
   /** Low-HP warning already beeped this battle. */
   lowHpBeeped: boolean;
@@ -266,6 +273,7 @@ export default function PokemonBanner() {
       battle: null,
       hpFlash: null,
       lunge: null,
+      flinch: null,
       notif: null,
       lastStepBiome: 0,
       moveFx: null,
@@ -336,8 +344,8 @@ export default function PokemonBanner() {
       // Notification flash (shiny = red, arena = blue) auto-clears after its
       // ~3.6s blink sequence so the 2px line never stays pinned to the banner.
       if (s.notif && now - s.notif.key > 3600) s.notif = null;
-      // Dust puffs only exist while actually walking.
-      if (s.phase !== "walking" && s.dust.length) s.dust = [];
+      // Dust puffs only exist while actually moving (walking or approach).
+      if (s.phase !== "walking" && s.phase !== "approach" && s.dust.length) s.dust = [];
       const frame = () => {
         // Only expire the message once its display window has passed — the old
         // unconditional clear made every message vanish after a single frame.
@@ -374,11 +382,24 @@ export default function PokemonBanner() {
           s.lastStepBiome = biomeIdx;
           preloadSprites(BIOMES[biomeIdx].pool);
         }
-        // Dust puffs kicked up behind the leader (expire after ~700ms).
-        const dustTick = dustAccumulate(s.dustTimer, FRAME_MS);
-        s.dustTimer = dustTick.timer;
-        if (dustTick.spawn) {
-          s.dust = pushDust(s.dust, { key: Date.now(), x: s.leaderX });
+        // Dust puffs kicked up behind the leader — sized and paced by the
+        // species' walk gait (gliders kick up nothing, lurching gaits throw
+        // big puffs; see walkDustFor in presentation.ts).
+        const leaderMon = s.save.team[0];
+        const leaderDust = leaderMon
+          ? walkDustFor(walkAnimClass(leaderMon.speciesId))
+          : { level: 1 as const, intervalMs: 800 };
+        if (s.save.dustTrail !== false && leaderDust.level > 0) {
+          const dustTick = dustAccumulate(s.dustTimer, FRAME_MS, leaderDust.intervalMs);
+          s.dustTimer = dustTick.timer;
+          if (dustTick.spawn) {
+            s.dust = pushDust(s.dust, {
+              key: Date.now(),
+              x: s.leaderX,
+              size: DUST_LEVEL_PX[leaderDust.level],
+              side: "leader",
+            });
+          }
         }
         if (s.dust.length) s.dust = expireDust(s.dust, now);
         // Biome/phase-aware BGM: swaps plains/forest/cave + night variants live
@@ -397,12 +418,14 @@ export default function PokemonBanner() {
         }
         if (s.nurseJoyLife > 0) s.nurseJoyLife--;
         if (s.nurseJoyLife <= 0) s.nurseJoy = false;
-        // ground item pickup (1% per frame while walking)
-        if (!s.groundItem && Math.random() < 0.01) {
+        // ground item pickup (0.6% per frame — rare, announced)
+        if (!s.groundItem && Math.random() < 0.006) {
           s.groundItem = {
             x: 80 + Math.random() * (viewportW.current - 200),
             life: 180,
           };
+          s.message = tr("item-appeared");
+          s.messageUntil = now + 1600;
         }
         if (s.groundItem) {
           s.groundItem.life--;
@@ -441,7 +464,23 @@ export default function PokemonBanner() {
         }
       } else if (s.phase === "approach" && s.enemy) {
         s.enemy.x -= 4;
-        const meetX = s.leaderX + 36;
+        // The approaching wild Pokémon trails dust behind it too — sized and
+        // paced by its own species gait.
+        const enemyDust = walkDustFor(walkAnimClass(s.enemy.pokemon.speciesId));
+        if (s.save.dustTrail !== false && enemyDust.level > 0) {
+          const dustTick = dustAccumulate(s.dustTimer, FRAME_MS, enemyDust.intervalMs);
+          s.dustTimer = dustTick.timer;
+          if (dustTick.spawn) {
+            s.dust = pushDust(s.dust, {
+              key: Date.now(),
+              x: s.enemy.x + 8,
+              size: DUST_LEVEL_PX[enemyDust.level],
+              side: "enemy",
+            });
+          }
+        }
+        if (s.dust.length) s.dust = expireDust(s.dust, now);
+        const meetX = s.leaderX + 36; // dust-attach-test
         if (s.enemy.x <= meetX) {
           const leader = s.save.team[0];
           if (!leader) {
@@ -537,6 +576,17 @@ export default function PokemonBanner() {
     s.lunge = enemyHit ? "leader" : "enemy";
     // Floating damage numbers for this tick (hits on both sides + drains/heals).
     const critHit = logHasCrit(next.log);
+    // Critical hits trigger a brief species-flavored flinch on the sprite
+    // that takes the hit (see flinchClass in presentation.ts).
+    if (critHit) {
+      s.flinch = enemyHit ? "enemy" : leaderHit ? "leader" : null;
+      window.setTimeout(() => {
+        if (g.current) {
+          g.current.flinch = null;
+          rerender();
+        }
+      }, 420);
+    }
     const pops: GameRef["dmgFx"] = computeDmgFx(
       { leader: beforeLeader, enemy: beforeEnemy },
       { leader: next.leader.hp, enemy: next.enemy.hp },
@@ -1366,6 +1416,13 @@ export default function PokemonBanner() {
   // class is per-species (idleAnimClass in presentation.ts).
   const idling = walking && (s.paused || s.idlePause > 0);
   const idleClass = leader ? idleAnimClass(leader.speciesId) : "idle-sway";
+  // Walk gait: the per-species MOVEMENT animation, active while actually
+  // walking (the idle class only replaces it during the turn-around pause
+  // or the tray pause). Each species has its own signature stride.
+  const walkClass = leader ? walkAnimClass(leader.speciesId) : "walk-sway";
+  // Combat pose: the species' fighting stance while a battle is active (see
+  // combatPoseClass in presentation.ts — replaces the static battle stance).
+  const poseClass = leader ? combatPoseClass(leader.speciesId) : "pose-ready";
   // Electron shell: the window is transparent, so the sky tile swaps to the
   // clouds-only variant and the CSS paints the scene straight on the desktop.
   const desktopShell =
@@ -1544,11 +1601,12 @@ export default function PokemonBanner() {
         {s.groundItem && walking && (
           <button
             onClick={pickGroundItem}
-            className="absolute z-20 h-3 w-3"
+            className="item-bob absolute z-20 h-4 w-4"
             style={{ left: s.groundItem.x, bottom: 14 }}
-            title="Pick up item"
+            title={tr("pickup-title")}
           >
-            <span className="pokeball-pixel block h-3 w-3" />
+            <span className="pokeball-pixel block h-3.5 w-3.5" />
+            <span className="item-shine pointer-events-none absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full border border-ink bg-yellow-300" />
           </button>
         )}
 
@@ -1560,23 +1618,27 @@ export default function PokemonBanner() {
               className={`${SPRITE_SHADOW_CLASS} bottom-1 z-[5]`}
               style={{ left: s.leaderX + 6 }}
             />
-            {/* walking dust */}
+            {/* walking dust — puff size matches the gait (see DUST_LEVEL_PX) */}
             {s.dust.map((d) => (
               <span
                 key={d.key}
                 className={`${DUST_PUFF_CLASS} bottom-2 z-[5]`}
-                style={{ left: d.x + 4 }}
+                style={{
+                  left: d.x + (d.side === "enemy" ? 2 : 4),
+                  width: d.size,
+                  height: d.size,
+                }}
               />
             ))}
           <img
             src={leaderSprite}
             alt=""
-            className={`absolute bottom-1 z-10 h-10 w-10 pixelated ${idling ? idleClass : ""}`}
+            className={`absolute bottom-1 z-10 h-10 w-10 pixelated ${idling ? idleClass : walkClass}`}
             style={
               {
                 left: s.leaderX,
                 transform: s.dir === -1 ? "scaleX(-1)" : undefined,
-                // Idle keyframes scale by this so the flip direction is kept.
+                // Idle AND walk keyframes scale by this so the flip is kept.
                 "--flip": s.dir === -1 ? -1 : 1,
               } as React.CSSProperties
             }
@@ -1590,11 +1652,11 @@ export default function PokemonBanner() {
             }}
           />
           {/* Debug readout while the tray pause freezes the game: the leader's
-              localized species + its species-specific idle animation class. */}
+              localized species + its species-specific idle AND walk classes. */}
           {s.paused && (
             <div className="pointer-events-none absolute left-1 top-6 z-30">
               <div className="nb-panel px-1.5 py-0.5 text-[6px] text-ink">
-                {trName(leader.speciesId)} · {idleClass}
+                {trName(leader.speciesId)} · {idleClass} / {walkClass} / {poseClass}
               </div>
             </div>
           )}
@@ -1612,12 +1674,12 @@ export default function PokemonBanner() {
           <img
             src={urlSpriteCombat(s.enemy.pokemon.speciesId)}
             alt=""
-            className={`absolute bottom-1 z-10 h-10 w-10 pixelated ${idleAnimClass(s.enemy.pokemon.speciesId)}`}
+            className={`absolute bottom-1 z-10 h-10 w-10 pixelated ${walkAnimClass(s.enemy.pokemon.speciesId)}`}
             style={
               {
                 left: s.enemy.x,
                 transform: "scaleX(-1)",
-                // Keep the mirror while the species idle animation plays.
+                // Keep the mirror while the species walk gait plays.
                 "--flip": -1,
               } as React.CSSProperties
             }
@@ -1667,6 +1729,10 @@ export default function PokemonBanner() {
               <div className={`${SPRITE_SHADOW_CLASS} bottom-0 left-1 z-0`} />
               <HpBar hp={s.battle.leader.hp} max={s.battle.leader.maxHp} flashing={s.hpFlash === "leader"} />
               <div className={s.lunge === "leader" ? "lunge-left" : ""}>
+                <div
+                  className={"inline-block " + combatPoseClass(s.battle.leader.speciesId) + (s.flinch === "leader" ? " " + flinchClass(combatPoseClass(s.battle.leader.speciesId)) : "")}
+                  style={{ "--flip": 1 } as React.CSSProperties}
+                >
                 <img
                   src={
                     s.battle.leader.shiny
@@ -1684,6 +1750,7 @@ export default function PokemonBanner() {
                     }
                   }}
                 />
+                </div>
               </div>
             </div>
             {/* enemy */}
@@ -1694,6 +1761,10 @@ export default function PokemonBanner() {
               <div className={`${SPRITE_SHADOW_CLASS} bottom-0 right-1 z-0`} />
               <HpBar hp={s.battle.enemy.hp} max={s.battle.enemy.maxHp} flashing={s.hpFlash === "enemy"} />
               <div className={s.lunge === "enemy" ? "lunge-right" : ""}>
+                <div
+                  className={"inline-block " + combatPoseClass(s.battle.enemy.speciesId) + (s.flinch === "enemy" ? " " + flinchClass(combatPoseClass(s.battle.enemy.speciesId)) : "")}
+                  style={{ "--flip": -1 } as React.CSSProperties}
+                >
                 <img
                   src={
                     s.battle.enemy.shiny
@@ -1702,7 +1773,6 @@ export default function PokemonBanner() {
                   }
                   alt=""
                   className={`h-10 w-10 pixelated ${s.battle.enemy.shiny ? "shiny-glow" : ""}`}
-                  style={{ transform: "scaleX(-1)" }}
                   onError={(e) => {
                     const el = e.currentTarget as HTMLImageElement;
                     if (el.src.includes("-shiny")) {
@@ -1712,6 +1782,7 @@ export default function PokemonBanner() {
                     }
                   }}
                 />
+                </div>
               </div>
             </div>
 
@@ -1874,7 +1945,7 @@ export default function PokemonBanner() {
           <button
             onClick={hatchEgg}
             className="egg-wiggle absolute left-1/2 top-6 z-30 flex h-6 w-6 -translate-x-1/2 items-center justify-center border-2 border-ink bg-white text-[10px]"
-            title="A mysterious egg..."
+            title={tr("egg-title")}
           >
             🥚
           </button>
@@ -1985,6 +2056,13 @@ export default function PokemonBanner() {
               persist();
               rerender();
             }}
+            onSetDustTrail={(on) => {
+              const x = g.current!;
+              x.save = { ...x.save, dustTrail: on };
+              if (!on) x.dust = [];
+              persist();
+              rerender();
+            }}
             onClearDetails={() => {
               const x = g.current!;
               x.detailsMon = null;
@@ -2044,3 +2122,4 @@ function purchaseItemLocal(
 function makeChampionEncounter(championWins: number, leaderLevel: number): Encounter {
   return setupChampion(leaderLevel, championWins);
 }
+

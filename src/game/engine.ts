@@ -1098,6 +1098,7 @@ export function createSave(starterSpeciesId: string): SaveData {
     startedAt: Date.now(),
     lastSaveAt: Date.now(),
     bgmEnabled: true,
+    dustTrail: true,
     language: "en",
   };
 }
@@ -1139,6 +1140,8 @@ export function normalizeSave(raw: unknown): SaveData {
     lastSaveAt: Number(r.lastSaveAt) || Date.now(),
     // Old saves predate the flag: default to music ON (matches fresh games).
     bgmEnabled: r.bgmEnabled !== false,
+    // Old saves predate the toggle: default footstep dust ON.
+    dustTrail: r.dustTrail !== false,
     language: (r.language as Language) ?? "en",
   };
 }
