@@ -397,7 +397,7 @@ export const GROUND_ITEM_WEIGHTS: [string, number][] = [
 // packaged desktop installer filename (kept in sync with desktop/package.json).
 // ---------------------------------------------------------------------------
 
-export const GAME_VERSION = "1.5.0";
+export const GAME_VERSION = "1.6.0";
 
 export const TUNING = {
   bannerHeight: 60,

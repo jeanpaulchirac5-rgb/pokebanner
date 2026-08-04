@@ -37,6 +37,26 @@ export function logHasCrit(log: string[]): boolean {
   return log.some((l) => l.toLowerCase().includes("critical"));
 }
 
+/** Whether a battle log mentions a super-effective hit. */
+export function logHasSuper(log: string[]): boolean {
+  return log.some((l) => l.toLowerCase().includes("super effective"));
+}
+
+/** Whether a battle log mentions a not-very-effective hit. */
+export function logHasWeak(log: string[]): boolean {
+  return log.some((l) => l.toLowerCase().includes("not very effective"));
+}
+
+/** Whether a battle log mentions a missed attack ("'s <move> missed!"). */
+export function logHasMiss(log: string[]): boolean {
+  return log.some((l) => l.toLowerCase().includes("missed!"));
+}
+
+/** Whether a battle log mentions a status effect being inflicted. */
+export function logHasStatus(log: string[]): boolean {
+  return log.some((l) => l.toLowerCase().includes("was inflicted with"));
+}
+
 /**
  * Compute the floating damage pops for one battle tick from HP deltas.
  * A hit produces a "damage" (or "crit") pop on the receiving side; recovery

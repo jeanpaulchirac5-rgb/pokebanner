@@ -95,6 +95,10 @@ export const COVERAGE_MAP: Record<string, SuiteName[]> = {
   // ---- fx.ts (battle-presentation FX helpers) ----
   vsFlashActive: ["fx"],
   logHasCrit: ["fx"],
+  logHasSuper: ["fx"],
+  logHasWeak: ["fx"],
+  logHasMiss: ["fx"],
+  logHasStatus: ["fx"],
   computeDmgFx: ["fx"],
   dmgFxLabel: ["fx"],
   dmgFxClass: ["fx"],

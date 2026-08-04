@@ -22,6 +22,10 @@ import {
   levelUpFxActive,
   LEVEL_UP_FX_MS,
   logHasCrit,
+  logHasMiss,
+  logHasStatus,
+  logHasSuper,
+  logHasWeak,
   pushDust,
   sparkleBurst,
   SPRITE_SHADOW_CLASS,
@@ -77,6 +81,28 @@ describe("logHasCrit (critical-hit detector)", () => {
 
   it("returns false when no crit happened", () => {
     expect(logHasCrit(["Bulbasaur used Vine Whip", "It hit! -18"])).toBe(false);
+  });
+});
+
+describe("battle-log outcome detectors (v1.6.0 combat sounds)", () => {
+  it("logHasSuper spots super-effective hits", () => {
+    expect(logHasSuper(["Bulbasaur used Vine Whip — super effective! -30"])).toBe(true);
+    expect(logHasSuper(["Pidgey used Tackle -12"])).toBe(false);
+  });
+
+  it("logHasWeak spots not-very-effective hits", () => {
+    expect(logHasWeak(["Charmander used Ember — not very effective... -5"])).toBe(true);
+    expect(logHasWeak(["Charmander used Ember -18"])).toBe(false);
+  });
+
+  it("logHasMiss spots missed attacks", () => {
+    expect(logHasMiss(["Pidgey's Tackle missed!"])).toBe(true);
+    expect(logHasMiss(["Rattata is fast asleep."])).toBe(false);
+  });
+
+  it("logHasStatus spots inflicted status effects", () => {
+    expect(logHasStatus(["Oddish was inflicted with sleep!"])).toBe(true);
+    expect(logHasStatus(["Oddish was seeded!"])).toBe(false);
   });
 });
 

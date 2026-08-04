@@ -19,6 +19,10 @@ import type { TimePhase } from "./types";
 export type SfxName =
   | "hit"
   | "crit"
+  | "super"
+  | "weak"
+  | "miss"
+  | "status"
   | "capture"
   | "capture-fail"
   | "levelup"
@@ -33,7 +37,10 @@ export type SfxName =
   | "xp"
   | "switchin"
   | "denied"
-  | "weather";
+  | "weather-rain"
+  | "weather-snow"
+  | "weather-starry"
+  | "weather-clear";
 
 export type BgmBiome = "plains" | "forest" | "cave";
 
@@ -170,67 +177,129 @@ export function resolveBgmKey(biomeIndex: number, phase: TimePhase): BgmKey {
 // ---------------------------------------------------------------------------
 
 export const SFX_PATTERNS: Record<SfxName, Tone[]> = {
+  // normal impact — square crack + a low sine punch underneath
   hit: [
-    { note: "B4", start: 0, dur: 0.08, type: "square", vol: 0.45 },
-    { note: "G4", start: 0.08, dur: 0.1, type: "square", vol: 0.45 },
+    { note: "B4", start: 0, dur: 0.07, type: "square", vol: 0.5 },
+    { note: "G4", start: 0.07, dur: 0.09, type: "square", vol: 0.5 },
+    { note: "B2", start: 0, dur: 0.1, type: "sine", vol: 0.4 },
   ],
+  // critical — triangle shimmer into a heavier double-strike impact
   crit: [
-    { note: "E5", start: 0, dur: 0.09, type: "square", vol: 0.5 },
-    { note: "G5", start: 0.09, dur: 0.09, type: "square", vol: 0.5 },
-    { note: "E5", start: 0.18, dur: 0.12, type: "square", vol: 0.5 },
+    { note: "E5", start: 0, dur: 0.06, type: "triangle", vol: 0.4 },
+    { note: "G5", start: 0.06, dur: 0.06, type: "triangle", vol: 0.4 },
+    { note: "E5", start: 0.12, dur: 0.08, type: "square", vol: 0.5 },
+    { note: "C6", start: 0.2, dur: 0.12, type: "square", vol: 0.5 },
+    { note: "E6", start: 0.32, dur: 0.2, type: "triangle", vol: 0.45 },
   ],
+  // super-effective — bright rising fanfare
+  super: [
+    { note: "C5", start: 0, dur: 0.07, type: "square", vol: 0.45 },
+    { note: "E5", start: 0.07, dur: 0.07, type: "square", vol: 0.45 },
+    { note: "G5", start: 0.14, dur: 0.09, type: "square", vol: 0.45 },
+    { note: "C6", start: 0.23, dur: 0.14, type: "triangle", vol: 0.45 },
+  ],
+  // not-very-effective — dull descending thud
+  weak: [
+    { note: "D4", start: 0, dur: 0.1, type: "square", vol: 0.35 },
+    { note: "A3", start: 0.1, dur: 0.14, type: "square", vol: 0.35 },
+    { note: "F3", start: 0.24, dur: 0.16, type: "triangle", vol: 0.3 },
+  ],
+  // whiff — soft airy sine drop
+  miss: [
+    { note: "C5", start: 0, dur: 0.08, type: "sine", vol: 0.25, slideTo: "G4" },
+    { note: "G4", start: 0.1, dur: 0.12, type: "sine", vol: 0.2, slideTo: "D4" },
+  ],
+  // status inflicted (poison/sleep/paralysis/leech) — glitchy two-tone zap
+  status: [
+    { note: "E4", start: 0, dur: 0.06, type: "square", vol: 0.35 },
+    { note: "A#4", start: 0.06, dur: 0.06, type: "square", vol: 0.35 },
+    { note: "E4", start: 0.12, dur: 0.06, type: "square", vol: 0.35 },
+    { note: "A#4", start: 0.18, dur: 0.1, type: "square", vol: 0.35 },
+  ],
+  // ball wobble ×3 then a longer success fanfare with a high finish
   capture: [
     { note: "C5", start: 0, dur: 0.1, type: "square", vol: 0.4 },
     { note: "C5", start: 0.22, dur: 0.1, type: "square", vol: 0.4 },
     { note: "C5", start: 0.44, dur: 0.12, type: "square", vol: 0.4 },
     { note: "G4", start: 0.7, dur: 0.12, type: "triangle", vol: 0.45 },
     { note: "C5", start: 0.84, dur: 0.12, type: "triangle", vol: 0.45 },
-    { note: "E5", start: 0.98, dur: 0.2, type: "triangle", vol: 0.45 },
+    { note: "E5", start: 0.98, dur: 0.18, type: "triangle", vol: 0.45 },
+    { note: "C6", start: 1.16, dur: 0.2, type: "triangle", vol: 0.5 },
   ],
   "capture-fail": [
-    { note: "E4", start: 0, dur: 0.14, type: "square", vol: 0.4 },
-    { note: "C4", start: 0.16, dur: 0.18, type: "square", vol: 0.4 },
-    { note: "A3", start: 0.34, dur: 0.28, type: "square", vol: 0.4 },
+    { note: "E4", start: 0, dur: 0.12, type: "square", vol: 0.4 },
+    { note: "C4", start: 0.14, dur: 0.16, type: "square", vol: 0.4 },
+    { note: "A3", start: 0.3, dur: 0.2, type: "square", vol: 0.38 },
+    { note: "F3", start: 0.5, dur: 0.26, type: "triangle", vol: 0.32 },
   ],
   levelup: [
-    { note: "C5", start: 0, dur: 0.12, type: "triangle", vol: 0.45 },
-    { note: "E5", start: 0.12, dur: 0.12, type: "triangle", vol: 0.45 },
-    { note: "G5", start: 0.24, dur: 0.12, type: "triangle", vol: 0.45 },
-    { note: "C6", start: 0.36, dur: 0.3, type: "triangle", vol: 0.5 },
+    { note: "C5", start: 0, dur: 0.1, type: "triangle", vol: 0.45 },
+    { note: "E5", start: 0.1, dur: 0.1, type: "triangle", vol: 0.45 },
+    { note: "G5", start: 0.2, dur: 0.1, type: "triangle", vol: 0.45 },
+    { note: "C6", start: 0.3, dur: 0.16, type: "triangle", vol: 0.5 },
+    { note: "E6", start: 0.46, dur: 0.2, type: "triangle", vol: 0.42 },
   ],
+  // victory fanfare — bass drone under the arpeggio, bright finish
   victory: [
+    { note: "C3", start: 0, dur: 0.5, type: "sine", vol: 0.3 },
     { note: "C5", start: 0, dur: 0.12, type: "square", vol: 0.45 },
     { note: "E5", start: 0.12, dur: 0.12, type: "square", vol: 0.45 },
     { note: "G5", start: 0.24, dur: 0.12, type: "square", vol: 0.45 },
-    { note: "C6", start: 0.36, dur: 0.3, type: "square", vol: 0.5 },
+    { note: "C6", start: 0.36, dur: 0.18, type: "square", vol: 0.5 },
+    { note: "E6", start: 0.54, dur: 0.22, type: "triangle", vol: 0.45 },
   ],
+  // evolution — rising saw slide with a celestial sparkle on top
   evolve: [
     { note: "E5", start: 0, dur: 0.6, type: "sawtooth", vol: 0.3, slideTo: "E6" },
     { note: "B5", start: 0.15, dur: 0.5, type: "triangle", vol: 0.4 },
+    { note: "E6", start: 0.35, dur: 0.25, type: "triangle", vol: 0.35 },
+    { note: "G6", start: 0.6, dur: 0.3, type: "triangle", vol: 0.3 },
   ],
   faint: [
     { note: "C5", start: 0, dur: 0.5, type: "sawtooth", vol: 0.3, slideTo: "C4" },
     { note: "A3", start: 0.3, dur: 0.35, type: "triangle", vol: 0.35, slideTo: "A2" },
+    { note: "F3", start: 0.55, dur: 0.4, type: "triangle", vol: 0.25, slideTo: "F2" },
   ],
   heal: [
-    { note: "A4", start: 0, dur: 0.1, type: "triangle", vol: 0.4 },
-    { note: "C5", start: 0.12, dur: 0.16, type: "triangle", vol: 0.4 },
+    { note: "A4", start: 0, dur: 0.09, type: "triangle", vol: 0.4 },
+    { note: "C5", start: 0.11, dur: 0.12, type: "triangle", vol: 0.4 },
+    { note: "E5", start: 0.23, dur: 0.18, type: "triangle", vol: 0.38 },
   ],
   pickup: [
-    { note: "C6", start: 0, dur: 0.07, type: "square", vol: 0.35 },
-    { note: "E6", start: 0.07, dur: 0.1, type: "square", vol: 0.35 },
+    { note: "C6", start: 0, dur: 0.06, type: "square", vol: 0.35 },
+    { note: "E6", start: 0.06, dur: 0.06, type: "square", vol: 0.35 },
+    { note: "G6", start: 0.12, dur: 0.1, type: "square", vol: 0.35 },
   ],
   shiny: [
-    { note: "C6", start: 0, dur: 0.08, type: "triangle", vol: 0.5 },
-    { note: "E6", start: 0.08, dur: 0.08, type: "triangle", vol: 0.5 },
-    { note: "G6", start: 0.16, dur: 0.08, type: "triangle", vol: 0.5 },
-    { note: "C7", start: 0.24, dur: 0.2, type: "triangle", vol: 0.55 },
+    { note: "C6", start: 0, dur: 0.07, type: "triangle", vol: 0.5 },
+    { note: "E6", start: 0.07, dur: 0.07, type: "triangle", vol: 0.5 },
+    { note: "G6", start: 0.14, dur: 0.07, type: "triangle", vol: 0.5 },
+    { note: "C7", start: 0.21, dur: 0.14, type: "triangle", vol: 0.55 },
+    { note: "G6", start: 0.35, dur: 0.16, type: "triangle", vol: 0.4 },
   ],
   click: [{ note: "C6", start: 0, dur: 0.05, type: "square", vol: 0.2 }],
-  // weather change — soft two-note chime (rain/snow/starry/clear)
-  weather: [
-    { note: "E5", start: 0, dur: 0.09, type: "triangle", vol: 0.28 },
-    { note: "A5", start: 0.11, dur: 0.14, type: "triangle", vol: 0.28 },
+  // weather change chimes — each state gets its own flavor
+  "weather-rain": [
+    { note: "G5", start: 0, dur: 0.06, type: "triangle", vol: 0.3 },
+    { note: "E5", start: 0.09, dur: 0.06, type: "triangle", vol: 0.3 },
+    { note: "C5", start: 0.18, dur: 0.08, type: "triangle", vol: 0.3 },
+    { note: "A4", start: 0.27, dur: 0.1, type: "triangle", vol: 0.28 },
+  ],
+  "weather-snow": [
+    { note: "E6", start: 0, dur: 0.08, type: "sine", vol: 0.28 },
+    { note: "G6", start: 0.14, dur: 0.08, type: "sine", vol: 0.26 },
+    { note: "C7", start: 0.3, dur: 0.14, type: "sine", vol: 0.24 },
+  ],
+  "weather-starry": [
+    { note: "C5", start: 0, dur: 0.16, type: "triangle", vol: 0.3 },
+    { note: "G5", start: 0, dur: 0.16, type: "triangle", vol: 0.26 },
+    { note: "E6", start: 0.1, dur: 0.2, type: "sine", vol: 0.26 },
+    { note: "G5", start: 0.32, dur: 0.24, type: "sine", vol: 0.22 },
+  ],
+  "weather-clear": [
+    { note: "C5", start: 0, dur: 0.1, type: "triangle", vol: 0.32 },
+    { note: "E5", start: 0.1, dur: 0.1, type: "triangle", vol: 0.32 },
+    { note: "G5", start: 0.2, dur: 0.16, type: "triangle", vol: 0.32 },
   ],
   // low-HP warning — urgent triple beep
   lowhp: [
@@ -243,16 +312,19 @@ export const SFX_PATTERNS: Record<SfxName, Tone[]> = {
     { note: "C5", start: 0, dur: 0.06, type: "triangle", vol: 0.4 },
     { note: "E5", start: 0.06, dur: 0.06, type: "triangle", vol: 0.4 },
     { note: "G5", start: 0.12, dur: 0.06, type: "triangle", vol: 0.4 },
-    { note: "C6", start: 0.18, dur: 0.12, type: "triangle", vol: 0.4 },
+    { note: "C6", start: 0.18, dur: 0.1, type: "triangle", vol: 0.42 },
+    { note: "E6", start: 0.28, dur: 0.14, type: "triangle", vol: 0.4 },
   ],
-  // team switch-in whoosh
+  // team switch-in whoosh (dual-voice sweep)
   switchin: [
-    { note: "C4", start: 0, dur: 0.12, type: "sawtooth", vol: 0.28, slideTo: "C5" },
+    { note: "C4", start: 0, dur: 0.1, type: "sawtooth", vol: 0.28, slideTo: "C5" },
+    { note: "G4", start: 0.08, dur: 0.1, type: "triangle", vol: 0.3, slideTo: "G5" },
   ],
-  // blocked action buzz (no balls / can't use)
+  // blocked action buzz (no balls / can't use) — with a low tail
   denied: [
     { note: "E3", start: 0, dur: 0.09, type: "square", vol: 0.32 },
-    { note: "C3", start: 0.1, dur: 0.14, type: "square", vol: 0.32 },
+    { note: "C3", start: 0.1, dur: 0.12, type: "square", vol: 0.32 },
+    { note: "A2", start: 0.22, dur: 0.16, type: "square", vol: 0.3 },
   ],
 };
 

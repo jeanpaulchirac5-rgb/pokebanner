@@ -52,9 +52,11 @@ describe("noteToFrequency", () => {
 describe("pattern data", () => {
   it("every SFX pattern exists, is valid, and has a finite duration", () => {
     const names: SfxName[] = [
-      "hit", "crit", "capture", "capture-fail", "levelup", "victory",
+      "hit", "crit", "super", "weak", "miss", "status",
+      "capture", "capture-fail", "levelup", "victory",
       "evolve", "faint", "heal", "pickup", "shiny", "click",
-      "lowhp", "xp", "switchin", "denied", "weather",
+      "lowhp", "xp", "switchin", "denied",
+      "weather-rain", "weather-snow", "weather-starry", "weather-clear",
     ];
     for (const name of names) {
       const pattern = SFX_PATTERNS[name];

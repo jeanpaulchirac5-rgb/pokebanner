@@ -31,6 +31,10 @@ import {
   levelUpFxActive,
   LEVEL_UP_FX_MS,
   logHasCrit,
+  logHasMiss,
+  logHasStatus,
+  logHasSuper,
+  logHasWeak,
   pushDust,
   sparkleBurst,
   SPRITE_SHADOW_CLASS,
@@ -392,7 +396,15 @@ export default function PokemonBanner() {
                     : tr("clear-sky");
             s.messageUntil = now + 2600;
             s.notif = { color: w === "starry" ? "blue" : "red", key: Date.now() };
-            playSfx("weather");
+            playSfx(
+              w === "rain"
+                ? "weather-rain"
+                : w === "snow"
+                  ? "weather-snow"
+                  : w === "starry"
+                    ? "weather-starry"
+                    : "weather-clear",
+            );
           }
         }
         // Turn-around idle: at each edge the leader hesitates ~0.5s and plays
@@ -681,9 +693,23 @@ export default function PokemonBanner() {
         }, 700);
       }
     }
-    // Chiptune feedback for this tick's hits
-    if (enemyHit || leaderHit) {
-      playSfx(critHit ? "crit" : "hit");
+    // Chiptune feedback for this tick — differentiated by the outcome:
+    // crits ring, status effects zap, super/weak hits change the impact tone,
+    // and a clean whiff plays when both sides missed.
+    if (enemyHit || leaderHit || logHasMiss(next.log)) {
+      playSfx(
+        critHit
+          ? "crit"
+          : logHasStatus(next.log)
+            ? "status"
+            : logHasSuper(next.log)
+              ? "super"
+              : logHasWeak(next.log)
+                ? "weak"
+                : enemyHit || leaderHit
+                  ? "hit"
+                  : "miss",
+      );
     }
     if (s.hpFlash) {
       window.setTimeout(() => {
