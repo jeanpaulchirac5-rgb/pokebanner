@@ -161,6 +161,20 @@ const STARTER_MOVES: Record<string, string[]> = {
   squirtle: ["tackle", "water-gun", "bite", "withdraw"],
 };
 
+/**
+ * Evolved starter forms inherit their base form's signature learnset — an
+ * Ivysaur keeps Bulbasaur's vine moves, Charizard keeps Charmander's embers,
+ * etc. Without this an evolved starter falls back to plain Tackle.
+ */
+const STARTER_BASE: Record<string, string> = {
+  ivysaur: "bulbasaur",
+  venusaur: "bulbasaur",
+  charmeleon: "charmander",
+  charizard: "charmander",
+  wartortle: "squirtle",
+  blastoise: "squirtle",
+};
+
 /** Evolutions only need to be defined for the starter chains. */
 export const EVOLUTIONS: Record<string, { to: string; atLevel: number }> = {
   bulbasaur: { to: "ivysaur", atLevel: 16 },
@@ -223,7 +237,10 @@ export const WILD_MOVES: Record<string, string[]> = {
 };
 
 export function starterMovesFor(speciesId: string): MoveDef[] {
-  const ids = STARTER_MOVES[speciesId] ?? ["tackle"];
+  // Evolved starter forms map back to their base form so their signature
+  // movepool survives evolution (see STARTER_BASE above).
+  const baseId = STARTER_BASE[speciesId] ?? speciesId;
+  const ids = STARTER_MOVES[baseId] ?? ["tackle"];
   return ids.map((id) => MOVES[id]).filter(Boolean);
 }
 
@@ -379,7 +396,7 @@ export const GROUND_ITEM_WEIGHTS: [string, number][] = [
 // packaged desktop installer filename (kept in sync with desktop/package.json).
 // ---------------------------------------------------------------------------
 
-export const GAME_VERSION = "1.3.0";
+export const GAME_VERSION = "1.4.0";
 
 export const TUNING = {
   bannerHeight: 60,

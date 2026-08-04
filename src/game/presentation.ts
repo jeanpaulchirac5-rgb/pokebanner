@@ -3,7 +3,7 @@
 // and the shared pixel UI constants. Pure enough to unit-test in Node.
 // ---------------------------------------------------------------------------
 
-import { MOVES, SPECIES, UI } from "./constants";
+import { EVOLUTIONS, MOVES, SPECIES, UI } from "./constants";
 import type { BiomeDef, MoveDef } from "./types";
 
 /** Lowercases and normalizes a name into the Showdown sprite id format.
@@ -37,6 +37,26 @@ export function urlSpriteOpponent(speciesId: string): string {
  *  the regular set. Falls back to the normal sprite on error in the UI. */
 export function urlSpriteShiny(speciesId: string): string {
   return `${UI.spriteBase}-shiny/${toEnglishId(speciesId)}.gif`;
+}
+
+/** Species that have no evolution of their own but ARE someone's evolved form. */
+const FINAL_EVOLUTION_FORMS = new Set(
+  Object.values(EVOLUTIONS).map((e) => e.to),
+);
+
+/**
+ * Render scale for a species, so evolution is visible at a glance: starter
+ * mid-forms render 1.1× and final forms 1.2× their base size. Everything
+ * outside the starter chains (wild Pokémon, legends) renders at 1×.
+ */
+export function spriteScaleFor(speciesId: string): number {
+  const id = toEnglishId(speciesId);
+  const step = EVOLUTIONS[id];
+  if (step) {
+    // Base forms of 3-stage chains stay small; mid forms render slightly bigger.
+    return EVOLUTIONS[step.to] ? 1 : 1.1;
+  }
+  return FINAL_EVOLUTION_FORMS.has(id) ? 1.2 : 1;
 }
 
 /**

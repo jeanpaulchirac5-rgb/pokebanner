@@ -595,6 +595,26 @@ describe("xp & levels", () => {
     expect(checkEvolution(mon("charmeleon", 36))?.newSpeciesId).toBe("charizard");
   });
 
+  it("evolved starter forms inherit their base form's signature learnset", () => {
+    const bulba = starterMovesFor("bulbasaur").map((m) => m.id);
+    expect(starterMovesFor("ivysaur").map((m) => m.id)).toEqual(bulba);
+    expect(starterMovesFor("venusaur").map((m) => m.id)).toEqual(bulba);
+    expect(starterMovesFor("charizard").map((m) => m.id)).toEqual(
+      starterMovesFor("charmander").map((m) => m.id),
+    );
+    expect(starterMovesFor("blastoise").map((m) => m.id)).toEqual(
+      starterMovesFor("squirtle").map((m) => m.id),
+    );
+  });
+
+  it("expShare reports bench evolutions so the UI can announce them", () => {
+    const team = [mon("bulbasaur", 5), { ...mon("bulbasaur", 15), xp: 430 }];
+    const { team: out, evolved } = expShare(team, 100, 1);
+    expect(evolved).toEqual([1]);
+    expect(out[1].speciesId).toBe("ivysaur");
+    expect(out[0].speciesId).toBe("bulbasaur");
+  });
+
   it("expShare gives the leader full xp and the bench half", () => {
     const team = [mon("bulbasaur", 5), mon("pidgey", 5), mon("rattata", 5)];
     const { team: out } = expShare(team, 100, 1);

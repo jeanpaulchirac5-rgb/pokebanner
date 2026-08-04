@@ -110,6 +110,7 @@ export const COVERAGE_MAP: Record<string, SuiteName[]> = {
   urlSpriteCombat: ["presentation"],
   urlSpriteOpponent: ["presentation"],
   urlSpriteShiny: ["presentation"],
+  spriteScaleFor: ["presentation"],
   idleAnimClass: ["presentation"],
   walkAnimClass: ["presentation"],
   walkDustFor: ["presentation"],

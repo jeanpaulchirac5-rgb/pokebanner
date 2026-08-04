@@ -26,6 +26,7 @@ import {
   skyGradientSvg,
   skySvg,
   spriteId,
+  spriteScaleFor,
   sunSvg,
   toEnglishId,
   urlSpriteCombat,
@@ -33,6 +34,24 @@ import {
   urlSpriteShiny,
   urlSpriteWalking,
 } from "../presentation";
+
+describe("spriteScaleFor — evolved forms render larger", () => {
+  it("base forms and wild species stay at 1×", () => {
+    expect(spriteScaleFor("bulbasaur")).toBe(1);
+    expect(spriteScaleFor("charmander")).toBe(1);
+    expect(spriteScaleFor("squirtle")).toBe(1);
+    expect(spriteScaleFor("pidgey")).toBe(1);
+  });
+
+  it("mid forms render 1.1× and final forms 1.2×", () => {
+    expect(spriteScaleFor("ivysaur")).toBe(1.1);
+    expect(spriteScaleFor("charmeleon")).toBe(1.1);
+    expect(spriteScaleFor("wartortle")).toBe(1.1);
+    expect(spriteScaleFor("venusaur")).toBe(1.2);
+    expect(spriteScaleFor("charizard")).toBe(1.2);
+    expect(spriteScaleFor("blastoise")).toBe(1.2);
+  });
+});
 
 describe("sprite URLs", () => {
   it("urlSpriteWalking uses the lowercase Showdown ani URL", () => {

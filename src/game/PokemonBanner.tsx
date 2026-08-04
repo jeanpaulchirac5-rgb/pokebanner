@@ -92,6 +92,7 @@ import {
   scenerySvg,
   skyColorFor,
   skyGradientSvg,
+  spriteScaleFor,
   urlSpriteCombat,
   urlSpriteShiny,
   urlSpriteWalking,
@@ -754,10 +755,25 @@ export default function PokemonBanner() {
         persist();
         return;
       }
+      // Bench evolutions: expShare already applied evolutions to boxed/bench
+      // members (they earn half XP) — surface them so no evolution is silent.
+      const benchEvoMessages: string[] = [];
+      share.evolved.forEach((i) => {
+        if (i === 0) return;
+        const before = save.team[i]?.speciesId;
+        const after = s.save.team[i]?.speciesId;
+        if (before && after && after !== before) {
+          benchEvoMessages.push(
+            tr("evolved", { a: trName(before), b: trName(after) }),
+          );
+        }
+      });
+      if (benchEvoMessages.length > 0) playSfx("evolve");
       // Badge message takes priority when a champion was beaten; otherwise the
       // XP/₽ summary (never clobbers the badge announcement anymore).
       s.message =
         badgeMsg ??
+        benchEvoMessages[0] ??
         levelMessages[0] ??
         tr("rewards", { xp: rewards.xpGain, money: rewards.moneyGain });
       s.messageUntil = now + (badgeMsg ? 2600 : 2200);
@@ -1443,6 +1459,10 @@ export default function PokemonBanner() {
       ? urlSpriteShiny(save.team[0].speciesId)
       : urlSpriteWalking(save.team[0].speciesId)
     : placeholderSprite("empty");
+  // Evolved starter forms render larger — evolution is visible at a glance.
+  const leaderSize = Math.round(
+    40 * (leader ? spriteScaleFor(leader.speciesId) : 1),
+  );
 
   return (
     <div className="banner-page flex min-h-screen flex-col bg-white">
@@ -1653,10 +1673,12 @@ export default function PokemonBanner() {
           <img
             src={leaderSprite}
             alt=""
-            className={`absolute bottom-1 z-10 h-10 w-10 pixelated ${idling ? idleClass : walkClass}`}
+            className={`absolute bottom-1 z-10 pixelated ${idling ? idleClass : walkClass}`}
             style={
               {
                 left: s.leaderX,
+                height: leaderSize,
+                width: leaderSize,
                 transform: s.dir === -1 ? "scaleX(-1)" : undefined,
                 // Idle AND walk keyframes scale by this so the flip is kept.
                 "--flip": s.dir === -1 ? -1 : 1,
@@ -1694,10 +1716,12 @@ export default function PokemonBanner() {
           <img
             src={urlSpriteCombat(s.enemy.pokemon.speciesId)}
             alt=""
-            className={`absolute bottom-1 z-10 h-10 w-10 pixelated ${walkAnimClass(s.enemy.pokemon.speciesId)}`}
+            className={`absolute bottom-1 z-10 pixelated ${walkAnimClass(s.enemy.pokemon.speciesId)}`}
             style={
               {
                 left: s.enemy.x,
+                height: Math.round(40 * spriteScaleFor(s.enemy.pokemon.speciesId)),
+                width: Math.round(40 * spriteScaleFor(s.enemy.pokemon.speciesId)),
                 transform: "scaleX(-1)",
                 // Keep the mirror while the species walk gait plays.
                 "--flip": -1,
@@ -1760,7 +1784,11 @@ export default function PokemonBanner() {
                       : urlSpriteCombat(s.battle.leader.speciesId)
                   }
                   alt=""
-                  className={`h-10 w-10 pixelated ${s.battle.leader.shiny ? "shiny-glow" : ""}`}
+                  className={`pixelated ${s.battle.leader.shiny ? "shiny-glow" : ""}`}
+                  style={{
+                    height: Math.round(40 * spriteScaleFor(s.battle.leader.speciesId)),
+                    width: Math.round(40 * spriteScaleFor(s.battle.leader.speciesId)),
+                  }}
                   onError={(e) => {
                     const el = e.currentTarget as HTMLImageElement;
                     if (el.src.includes("-shiny")) {
@@ -1792,7 +1820,11 @@ export default function PokemonBanner() {
                       : urlSpriteCombat(s.battle.enemy.speciesId)
                   }
                   alt=""
-                  className={`h-10 w-10 pixelated ${s.battle.enemy.shiny ? "shiny-glow" : ""}`}
+                  className={`pixelated ${s.battle.enemy.shiny ? "shiny-glow" : ""}`}
+                  style={{
+                    height: Math.round(40 * spriteScaleFor(s.battle.enemy.speciesId)),
+                    width: Math.round(40 * spriteScaleFor(s.battle.enemy.speciesId)),
+                  }}
                   onError={(e) => {
                     const el = e.currentTarget as HTMLImageElement;
                     if (el.src.includes("-shiny")) {
