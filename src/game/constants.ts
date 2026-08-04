@@ -6,6 +6,7 @@ import type {
   MoveDef,
   SpeciesDef,
   TypeName,
+  WeatherKind,
 } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -396,7 +397,7 @@ export const GROUND_ITEM_WEIGHTS: [string, number][] = [
 // packaged desktop installer filename (kept in sync with desktop/package.json).
 // ---------------------------------------------------------------------------
 
-export const GAME_VERSION = "1.4.0";
+export const GAME_VERSION = "1.5.0";
 
 export const TUNING = {
   bannerHeight: 60,
@@ -435,6 +436,13 @@ export const TUNING = {
   biomeStepSize: 500,
   cycleMs: 5 * 60 * 1000,
   badgeDamageBonus: 0.05,
+  /** Encounter-frequency multiplier per weather (rain draws out wild Pokémon). */
+  weatherEncounterMult: {
+    clear: 1,
+    rain: 0.8,
+    snow: 0.9,
+    starry: 1,
+  } as Record<WeatherKind, number>,
   maxLevel: 100,
   teamMax: 6,
   expShareBench: 0.5,

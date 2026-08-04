@@ -33,6 +33,8 @@ import {
   urlSpriteOpponent,
   urlSpriteShiny,
   urlSpriteWalking,
+  weatherParticles,
+  weatherTint,
 } from "../presentation";
 
 describe("spriteScaleFor — evolved forms render larger", () => {
@@ -50,6 +52,29 @@ describe("spriteScaleFor — evolved forms render larger", () => {
     expect(spriteScaleFor("venusaur")).toBe(1.2);
     expect(spriteScaleFor("charizard")).toBe(1.2);
     expect(spriteScaleFor("blastoise")).toBe(1.2);
+  });
+});
+
+describe("dynamic weather visuals", () => {
+  it("weatherTint returns a translucent atmosphere overlay per weather", () => {
+    expect(weatherTint("clear")).toBe("transparent");
+    expect(weatherTint("rain")).toContain("rgba(");
+    expect(weatherTint("snow")).toContain("rgba(");
+    expect(weatherTint("starry")).toContain("rgba(");
+  });
+
+  it("weatherParticles are deterministic per seed and kind", () => {
+    expect(weatherParticles("clear", 7)).toEqual([]);
+    const rain = weatherParticles("rain", 7, 12);
+    expect(rain.length).toBe(12);
+    expect(rain.every((p) => p.kind === "rain")).toBe(true);
+    const snow = weatherParticles("snow", 7, 9);
+    expect(snow.length).toBe(9);
+    expect(snow.every((p) => p.kind === "snow")).toBe(true);
+    const stars = weatherParticles("starry", 7, 14);
+    expect(stars.length).toBe(14);
+    expect(stars.every((p) => p.kind === "star")).toBe(true);
+    expect(weatherParticles("rain", 7, 12)).toEqual(rain);
   });
 });
 

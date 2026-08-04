@@ -182,6 +182,9 @@ export type Rng = () => number;
 
 export type TimePhase = "day" | "sunset" | "night";
 
+/** Dynamic weather states (v1.5.0) — rolls once per 5-minute cycle. */
+export type WeatherKind = "clear" | "rain" | "snow" | "starry";
+
 export interface ItemDef {
   id: string;
   name: string;

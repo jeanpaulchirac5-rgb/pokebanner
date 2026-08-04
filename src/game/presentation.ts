@@ -4,7 +4,7 @@
 // ---------------------------------------------------------------------------
 
 import { EVOLUTIONS, MOVES, SPECIES, UI } from "./constants";
-import type { BiomeDef, MoveDef } from "./types";
+import type { BiomeDef, MoveDef, WeatherKind } from "./types";
 
 /** Lowercases and normalizes a name into the Showdown sprite id format.
  *  Collapses runs of non-alphanumerics into a single dash and trims edges
@@ -935,6 +935,97 @@ export function ambientParticles(
       swayPx: 3 + Math.floor(rnd() * 4),
       kind: pal.kind,
     });
+  }
+  return out;
+}
+
+/** A single weather particle: rain streak, snow flake or twinkling star. */
+export interface WeatherParticle {
+  kind: "rain" | "snow" | "star";
+  leftPct: number;
+  topPx: number;
+  width: number;
+  height: number;
+  delaySec: number;
+  durSec: number;
+  color: string;
+  /** Horizontal drift in px — rain angles, snow sways, stars ignore it. */
+  swayPx: number;
+}
+
+/** Full-scene atmosphere tint for a weather state (rgba overlay). Starry only
+ *  ever occurs at night, so it deepens the night instead of brightening it. */
+export function weatherTint(weather: WeatherKind): string {
+  switch (weather) {
+    case "rain":
+      return "rgba(28,48,78,0.30)";
+    case "snow":
+      return "rgba(214,234,255,0.20)";
+    case "starry":
+      return "rgba(8,12,42,0.18)";
+    default:
+      return "transparent";
+  }
+}
+
+/**
+ * Deterministic particle field for a weather state (LCG from the seed, like
+ * ambientParticles). Rain = thin falling streaks, snow = slow swaying flakes,
+ * starry = fixed twinkling stars, clear = nothing. The banner passes a stable
+ * per-save seed (startedAt) so particles don't reshuffle every frame.
+ */
+export function weatherParticles(
+  weather: WeatherKind,
+  seed = 0,
+  count = 16,
+): WeatherParticle[] {
+  if (weather === "clear") return [];
+  let s = (seed >>> 0) || 1;
+  const rnd = () => {
+    s = (s * 1664525 + 1013904223) >>> 0;
+    return s / 0xffffffff;
+  };
+  const out: WeatherParticle[] = [];
+  for (let i = 0; i < count; i++) {
+    if (weather === "rain") {
+      out.push({
+        kind: "rain",
+        leftPct: +(rnd() * 100).toFixed(2),
+        topPx: -8 + rnd() * 10,
+        width: 1,
+        height: 4 + Math.floor(rnd() * 3),
+        delaySec: +(rnd() * 1.4).toFixed(2),
+        durSec: +(0.45 + rnd() * 0.35).toFixed(2),
+        color: rnd() < 0.5 ? "#9db8d9" : "#c6d9f2",
+        swayPx: 2 + Math.floor(rnd() * 3),
+      });
+    } else if (weather === "snow") {
+      const size = 2 + Math.floor(rnd() * 2);
+      out.push({
+        kind: "snow",
+        leftPct: +(rnd() * 100).toFixed(2),
+        topPx: -6 + rnd() * 12,
+        width: size,
+        height: size,
+        delaySec: +(rnd() * 2.2).toFixed(2),
+        durSec: +(1.8 + rnd() * 1.4).toFixed(2),
+        color: "#eef6ff",
+        swayPx: 4 + Math.floor(rnd() * 5),
+      });
+    } else {
+      const size = 1 + Math.floor(rnd() * 2);
+      out.push({
+        kind: "star",
+        leftPct: +(2 + rnd() * 96).toFixed(2),
+        topPx: 2 + rnd() * 14,
+        width: size,
+        height: size,
+        delaySec: +(rnd() * 2.6).toFixed(2),
+        durSec: +(1.4 + rnd() * 1.6).toFixed(2),
+        color: rnd() < 0.7 ? "#fff7c2" : "#cfe4ff",
+        swayPx: 0,
+      });
+    }
   }
   return out;
 }

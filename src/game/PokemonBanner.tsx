@@ -64,6 +64,8 @@ import {
   setupChampion,
   switchLeader,
   timePhase,
+  weatherEncounterMult,
+  weatherFor,
   applyItemOn,
 } from "./engine";
 import {
@@ -98,6 +100,8 @@ import {
   urlSpriteWalking,
   walkAnimClass,
   walkDustFor,
+  weatherParticles,
+  weatherTint,
 } from "./presentation";
 import {
   LANG_LABELS,
@@ -129,6 +133,7 @@ import type {
   Encounter,
   Language,
   Pokemon,
+  WeatherKind,
   SaveData,
 } from "./types";
 import { GamePanels, type PanelTab } from "./panels";
@@ -199,6 +204,8 @@ interface GameRef {
   lowHpBeeped: boolean;
   /** Desktop shell: tray-driven pause freezes the whole loop. */
   paused: boolean;
+  /** Current dynamic weather (deterministic per the 5-min cycle). */
+  weatherLast: WeatherKind;
   /** Per-species evolution animation while the "evolving" phase plays. */
   evoFx: { kind: string; color: string; accent: string; glyph: string; from: string; to: string } | null;
   /** Nurse Joy NPC visit (appears occasionally while walking, opens the Center). */
@@ -259,7 +266,21 @@ export default function PokemonBanner() {
       dir: 1,
       enemy: null,
       encounterTimer: 0,
-      encounterDelay: nextEncounterDelay(rng),
+      encounterDelay: Math.round(
+        nextEncounterDelay(rng) *
+          weatherEncounterMult(
+            weatherFor(
+              save?.startedAt ?? Date.now(),
+              Date.now(),
+              timePhase(save?.startedAt ?? Date.now(), Date.now()),
+            ),
+          ),
+      ),
+      weatherLast: weatherFor(
+        save?.startedAt ?? Date.now(),
+        Date.now(),
+        timePhase(save?.startedAt ?? Date.now(), Date.now()),
+      ),
       battleTimer: 0,
       pauseLeft: 0,
       idlePause: 0,
@@ -354,6 +375,26 @@ export default function PokemonBanner() {
       };
 
       if (s.phase === "walking") {
+        // Dynamic weather (v1.5.0): deterministic per the 5-minute cycle.
+        // Announce shifts with a localized message + chime when they change.
+        const w = weatherFor(s.save.startedAt, now, timePhase(s.save.startedAt, now));
+        if (w !== s.weatherLast) {
+          const prev = s.weatherLast;
+          s.weatherLast = w;
+          if (prev) {
+            s.message =
+              w === "rain"
+                ? tr("rain-start")
+                : w === "snow"
+                  ? tr("snow-start")
+                  : w === "starry"
+                    ? tr("starry-start")
+                    : tr("clear-sky");
+            s.messageUntil = now + 2600;
+            s.notif = { color: w === "starry" ? "blue" : "red", key: Date.now() };
+            playSfx("weather");
+          }
+        }
         // Turn-around idle: at each edge the leader hesitates ~0.5s and plays
         // its species idle animation (see idleAnimClass in presentation.ts)
         // before walking back. The tray pause also stops the walk, so the
@@ -436,7 +477,8 @@ export default function PokemonBanner() {
         s.encounterTimer += FRAME_MS;
         if (s.encounterTimer >= s.encounterDelay && !s.merchant) {
           s.encounterTimer = 0;
-          s.encounterDelay = nextEncounterDelay(rng); // re-roll for next time
+          // Re-roll for next time — rain brings wild Pokémon out sooner.
+          s.encounterDelay = Math.round(nextEncounterDelay(rng) * weatherEncounterMult(w));
           const night = timePhase(s.save.startedAt, now) === "night";
           const leader = s.save.team[0];
           const level = leader?.level ?? 5;
@@ -1282,7 +1324,13 @@ export default function PokemonBanner() {
       else startBgm();
       if (!paused) {
         s.encounterTimer = 0; // avoid an instant spawn on resume
-        s.encounterDelay = nextEncounterDelay(rng); // fresh random window
+        // Fresh random window, scaled by the current weather.
+        s.encounterDelay = Math.round(
+          nextEncounterDelay(rng) *
+            weatherEncounterMult(
+              weatherFor(s.save.startedAt, Date.now(), timePhase(s.save.startedAt, Date.now())),
+            ),
+        );
       }
       rerender();
     };
@@ -1426,6 +1474,7 @@ export default function PokemonBanner() {
   const leader = save.team[0];
   const biome = BIOMES[biomeIndexForSteps(save.steps)];
   const phase = timePhase(save.startedAt, Date.now());
+  const weather = weatherFor(save.startedAt, Date.now(), phase);
   const phaseTint =
     phase === "night"
       ? "rgba(8,8,36,0.55)"
@@ -1610,6 +1659,35 @@ export default function PokemonBanner() {
             <div className="night-tint absolute inset-0" style={{ backgroundColor: phaseTint }} />
           )}
         </div>
+
+        {/* Dynamic weather (v1.5.0): full-scene atmosphere tint + particles.
+            Rain dims the world, snow frosts it, starry nights deepen it — and
+            the particles stay inside the 60px strip, so the transparent
+            desktop window still shows the wallpaper around them. */}
+        {weather !== "clear" && (
+          <div
+            className="weather-tint pointer-events-none absolute inset-0 z-[3]"
+            style={{ backgroundColor: weatherTint(weather) }}
+          />
+        )}
+        {weatherParticles(weather, save.startedAt).map((p, i) => (
+          <span
+            key={`w-${i}`}
+            className={`weather-${p.kind} pointer-events-none absolute z-[4]`}
+            style={
+              {
+                left: `${p.leftPct}%`,
+                top: p.topPx,
+                width: p.width,
+                height: p.height,
+                backgroundColor: p.color,
+                animationDuration: `${p.durSec}s`,
+                animationDelay: `${p.delaySec}s`,
+                "--sway": `${p.swayPx}px`,
+              } as React.CSSProperties
+            }
+          />
+        ))}
 
         {/* Merchant NPC (every 10 victories) */}
         {s.merchant && (

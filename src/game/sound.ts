@@ -32,7 +32,8 @@ export type SfxName =
   | "lowhp"
   | "xp"
   | "switchin"
-  | "denied";
+  | "denied"
+  | "weather";
 
 export type BgmBiome = "plains" | "forest" | "cave";
 
@@ -226,6 +227,11 @@ export const SFX_PATTERNS: Record<SfxName, Tone[]> = {
     { note: "C7", start: 0.24, dur: 0.2, type: "triangle", vol: 0.55 },
   ],
   click: [{ note: "C6", start: 0, dur: 0.05, type: "square", vol: 0.2 }],
+  // weather change — soft two-note chime (rain/snow/starry/clear)
+  weather: [
+    { note: "E5", start: 0, dur: 0.09, type: "triangle", vol: 0.28 },
+    { note: "A5", start: 0.11, dur: 0.14, type: "triangle", vol: 0.28 },
+  ],
   // low-HP warning — urgent triple beep
   lowhp: [
     { note: "A4", start: 0, dur: 0.09, type: "square", vol: 0.35 },

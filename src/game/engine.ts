@@ -38,6 +38,7 @@ import type {
   TimePhase,
   TurnOutcome,
   TypeName,
+  WeatherKind,
 } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -987,6 +988,33 @@ export function timePhase(startedAt: number, now: number): TimePhase {
   const elapsed = Math.max(0, now - startedAt);
   const phase = Math.floor(elapsed / TUNING.cycleMs) % 3;
   return phase === 1 ? "sunset" : phase === 2 ? "night" : "day";
+}
+
+/**
+ * Dynamic weather (v1.5.0). Deterministic: the 5-minute cycle index is hashed
+ * so the same (startedAt, now) ALWAYS yields the same weather — stable across
+ * re-renders and unit-testable. Starry only rolls at night; a starry roll
+ * during day/sunset resolves to a clear sky instead.
+ * Weights: clear 0.50 · rain 0.25 · snow 0.15 · starry 0.10.
+ */
+export function weatherFor(
+  startedAt: number,
+  now: number,
+  phase: TimePhase,
+): WeatherKind {
+  const elapsed = Math.max(0, now - startedAt);
+  const cycle = Math.floor(elapsed / TUNING.cycleMs);
+  let s = ((cycle * 2654435761) >>> 0) || 1;
+  s = (s * 1664525 + 1013904223) >>> 0;
+  const roll = s / 0xffffffff;
+  const kind: WeatherKind =
+    roll < 0.5 ? "clear" : roll < 0.75 ? "rain" : roll < 0.9 ? "snow" : "starry";
+  return kind === "starry" && phase !== "night" ? "clear" : kind;
+}
+
+/** Encounter-frequency multiplier per weather (rain = wild Pokémon come out). */
+export function weatherEncounterMult(weather: WeatherKind): number {
+  return TUNING.weatherEncounterMult[weather];
 }
 
 // ---------------------------------------------------------------------------

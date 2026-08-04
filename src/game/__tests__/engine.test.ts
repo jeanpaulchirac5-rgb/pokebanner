@@ -53,6 +53,8 @@ import {
   timePhase,
   typeMultiplier,
   applyItemOn,
+  weatherEncounterMult,
+  weatherFor,
   xpNeeded,
 } from "../engine";
 import type { BattleState, Pokemon, Rng } from "../types";
@@ -1061,6 +1063,42 @@ describe("time & saves", () => {
     expect(timePhase(0, CYCLE)).toBe("sunset");
     expect(timePhase(0, CYCLE * 2)).toBe("night");
     expect(timePhase(0, CYCLE * 3)).toBe("day");
+  });
+
+  it("weatherFor is deterministic per save clock and cycle", () => {
+    for (let i = 0; i < 30; i++) {
+      const startedAt = 1000 + i * 137;
+      const now = startedAt + CYCLE * i;
+      const phase = timePhase(startedAt, now);
+      expect(weatherFor(startedAt, now, phase)).toBe(weatherFor(startedAt, now, phase));
+    }
+  });
+
+  it("starry nights only roll when the phase is night", () => {
+    for (let i = 0; i < 90; i++) {
+      const now = CYCLE * i;
+      const phase = timePhase(0, now);
+      if (weatherFor(0, now, phase) === "starry") {
+        expect(phase).toBe("night");
+      }
+    }
+  });
+
+  it("weather shifts over time and spans at least three kinds", () => {
+    const kinds = new Set<string>();
+    for (let i = 0; i < 60; i++) {
+      const now = CYCLE * i;
+      kinds.add(weatherFor(0, now, timePhase(0, now)));
+    }
+    expect(kinds.has("clear")).toBe(true);
+    expect(kinds.size).toBeGreaterThanOrEqual(3);
+  });
+
+  it("weatherEncounterMult keeps clear/star at 1× and brings rain sooner", () => {
+    expect(weatherEncounterMult("clear")).toBe(1);
+    expect(weatherEncounterMult("starry")).toBe(1);
+    expect(weatherEncounterMult("rain")).toBeLessThan(1);
+    expect(weatherEncounterMult("snow")).toBeLessThan(1);
   });
 
   it("createSave builds a level-5 starter with the starting bag", () => {

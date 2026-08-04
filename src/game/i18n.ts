@@ -61,6 +61,11 @@ const UI: Dict = {
   "evolving": { en: "Huh? {mon} is evolving!", fr: "Hein ? {mon} évolue !", de: "Was? {mon} entwickelt sich!", es: "¿Qué? ¡{mon} está evolucionando!", ja: "えっ？ {mon} が進化している！" },
   "evolved": { en: "{a} evolved into {b}!", fr: "{a} évolue en {b} !", de: "{a} entwickelt sich zu {b}!", es: "¡{a} evolucionó a {b}!", ja: "{a} は {b} に進化した！" },
   "rewards": { en: "{xp} XP · ₽{money} earned!", fr: "{xp} XP · {money} ₽ gagnés !", de: "{xp} XP · {money} ₽ verdient!", es: "¡{xp} XP · {money} ₽ ganados!", ja: "{xp} XP・₽{money} を獲得！" },
+  // dynamic weather announcements (v1.5.0)
+  "rain-start": { en: "It started to rain!", fr: "Il se met à pleuvoir !", de: "Es beginnt zu regnen!", es: "¡Empieza a llover!", ja: "雨が降り出した！" },
+  "snow-start": { en: "Snow started falling!", fr: "Il se met à neiger !", de: "Es beginnt zu schneien!", es: "¡Empieza a nevar!", ja: "雪が降り出した！" },
+  "starry-start": { en: "A starry night falls over the route…", fr: "Une nuit étoilée tombe sur la route…", de: "Eine Sternennacht senkt sich über die Route…", es: "Una noche estrellada cae sobre la ruta…", ja: "星降る夜が道に広がる…" },
+  "clear-sky": { en: "The sky clears up.", fr: "Le ciel se dégage.", de: "Der Himmel klart auf.", es: "El cielo se despeja.", ja: "空が晴れ渡った。" },
   "badge-earned": { en: "{badge} earned! +5% team damage", fr: "{badge} obtenu ! +5% dégâts d'équipe", de: "{badge} erhalten! +5% Team-Schaden", es: "¡{badge} conseguida! +5% daño de equipo", ja: "{badge} を獲得！ チームのダメージ+5%" },
   "team-full": { en: "Team is full (6 max)!", fr: "Équipe complète (6 max) !", de: "Team ist voll (max. 6)!", es: "¡Equipo lleno (máx. 6)!", ja: "チームがいっぱいだ（最大6匹）！" },
   "leads": { en: "{mon} leads the walk!", fr: "{mon} mène la marche !", de: "{mon} führt den Weg an!", es: "¡{mon} lidera el paseo!", ja: "{mon} が先頭を歩く！" },

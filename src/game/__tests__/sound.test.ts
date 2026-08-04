@@ -54,7 +54,7 @@ describe("pattern data", () => {
     const names: SfxName[] = [
       "hit", "crit", "capture", "capture-fail", "levelup", "victory",
       "evolve", "faint", "heal", "pickup", "shiny", "click",
-      "lowhp", "xp", "switchin", "denied",
+      "lowhp", "xp", "switchin", "denied", "weather",
     ];
     for (const name of names) {
       const pattern = SFX_PATTERNS[name];
