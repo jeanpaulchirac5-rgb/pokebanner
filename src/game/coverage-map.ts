@@ -92,6 +92,7 @@ export const COVERAGE_MAP: Record<string, SuiteName[]> = {
   t: ["i18n"],
   uiKeys: ["i18n"],
   localizedName: ["i18n"],
+  dexFlavor: ["i18n"],
   localizedMoveName: ["i18n"],
   localizedItemName: ["i18n"],
   localizedChampionName: ["i18n"],

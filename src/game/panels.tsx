@@ -34,6 +34,7 @@ import {
   placeholderSprite,
 } from "./presentation";
 import {
+  dexFlavor,
   localizedItemName,
   localizedName,
   t,
@@ -639,7 +640,7 @@ function DexTab(props: GamePanelsProps) {
           </div>
           <div className="mt-1 border-t-2 border-ink pt-1 text-ink/80">
             <span className="font-bold uppercase">{t(lang, "dex-flavor")}: </span>
-            {detailMeta.flavor}
+            {dexFlavor(detail.id, lang)}
           </div>
         </div>
       )}
