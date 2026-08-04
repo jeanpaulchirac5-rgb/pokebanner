@@ -43,12 +43,41 @@ jobs:
         working-directory: desktop
         run: bun run icon
 
+      # Code-signing (optional): if the Azure Trusted Signing secrets are set,
+      # this injects build.win.sign into desktop/package.json so electron-builder
+      # signs both .exe files — killing the SmartScreen "unknown publisher"
+      # warning. With no secrets it exits unchanged and the build stays unsigned
+      # (see desktop/scripts/configure-azure-sign.cjs).
+      - name: Configure Azure Trusted Signing (if secrets present)
+        working-directory: desktop
+        env:
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_ENDPOINT: ${{ secrets.AZURE_ENDPOINT }}
+          AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
+          AZURE_PROFILE_NAME: ${{ secrets.AZURE_PROFILE_NAME }}
+          AZURE_PUBLISHER_NAME: ${{ secrets.AZURE_PUBLISHER_NAME }}
+        run: node ./scripts/configure-azure-sign.cjs
+
+      # electron-builder needs the Azure credentials in its own environment too.
+      # (Alternative: set WIN_CSC_LINK + WIN_CSC_KEY_PASSWORD secrets to sign
+      # with a traditional .pfx certificate — picked up automatically.)
       - name: Package Windows installer + portable exe
         working-directory: desktop
+        env:
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
         run: bunx electron-builder --win --publish never
 
+      # Installers + the auto-update feed (latest.yml + blockmaps) so the
+      # installed app can find and download the new version via electron-updater.
       - name: Attach artifacts to the release
         uses: softprops/action-gh-release@v2
         with:
-          files: desktop/release/*.exe
+          files: |
+            desktop/release/*.exe
+            desktop/release/latest.yml
+            desktop/release/*.blockmap
           generate_release_notes: true
