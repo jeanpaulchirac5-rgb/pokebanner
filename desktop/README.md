@@ -1,28 +1,28 @@
 # Poke-Banner desktop shell
 
-Frameless, transparent, always-on-top Electron window. It starts docked
-**above the Windows taskbar** but you can drag the green sky to **place it
-anywhere on the desktop** — top edge, a side, over a second monitor, wherever.
-Your position is remembered across restarts, and opening a Bag/PC/Dex/Shop/
-Arena panel grows the window in place (never yanking it back to the taskbar).
-The banner's neon-green sky (`#00ff00`) is keyed out to true alpha in desktop
-mode, so the strip appears to float over your desktop with no fringing.
+Frameless, always-on-top Electron window. It starts docked **above the
+Windows taskbar** but you can drag the banner to **place it anywhere on the
+desktop** — top edge, a side, over a second monitor, wherever. Your position
+is remembered across restarts, and opening a Bag/PC/Dex/Shop/Arena panel
+grows the window in place (never yanking it back to the taskbar).
 
-## How the keying works
+## How transparency works
 
-The web app always paints the sky `#00ff00` (see `src/game/constants.ts`,
-`TUNING.neonGreen`). The Electron window is `transparent: true`, and when the
-renderer detects `window.desktopAPI` it adds `desktop` to `<html>`. The CSS
-override in `src/index.css` then swaps the key color for real alpha:
+In the **browser**, the banner paints a living pixel-blue sky (see
+`src/game/presentation.ts`, `skySvg`/`skyColorFor`) that shifts with the
+in-game day/night cycle — bright blue by day, warm amber at sunset, deep
+indigo at night.
 
-```css
-html.desktop .game-sky { background-color: transparent !important; }
-```
-
-True per-pixel alpha (not chroma filtering) means crisp sprites, no green
-halos, and no artifacts over dark wallpapers. Interactive elements inside the
-banner are marked `no-drag` so buttons still click; the sky itself is the drag
-handle.
+On the **desktop**, the Electron window is truly transparent
+(`transparent: true` + `backgroundColor: "#00000000"` in `main.cjs`). The
+`html.desktop` CSS rules (see `src/index.css`) make the sky backdrop and page
+background transparent, so the strip floats the scene **directly over the
+wallpaper**: the drifting pixel clouds (`cloudsSvg` — the clouds-only,
+transparent sky tile), sun/moon, parallax scenery, sprites and ambient
+particles all stay on show. The starter-selection overlay becomes a
+translucent dark scrim so its buttons stay readable over any wallpaper.
+Interactive elements inside the banner are marked `no-drag` so buttons still
+click; the banner itself is the window drag handle.
 
 ## Run (dev, hot-reload)
 
@@ -64,6 +64,10 @@ assets) provides:
 - **N hotkey** — pressing **N** toggles the BGM loop on/off without touching
   SFX or volume (a `🎵 Music On/Off` message flashes). The toggle persists
   across tray pause/resume and biome/theme swaps, which all honor the flag.
+- **🔄 Check for updates / ⬇ Restart & install** — the installed app
+  auto-updates via GitHub Releases (electron-updater): it checks ~4s after
+  launch, downloads new versions in the background (Windows notification),
+  and offers **Restart & install** once ready. Saves survive updates.
 - **Position** — submenu with **Above taskbar** and **Top of screen** snap
   presets (plus a hint that you can drag the sky anywhere).
 - **Show / Hide banner** — toggles window visibility (left-click on the tray
@@ -72,9 +76,8 @@ assets) provides:
 
 ## Place it anywhere
 
-- The sky (`html.desktop .game-sky`) is an `-webkit-app-region: drag` handle,
-  so dragging the green strip moves the window; every button inside is
-  `no-drag`.
+- The banner (`html.desktop .game-sky`) is an `-webkit-app-region: drag`
+  handle, so dragging it moves the window; every button inside is `no-drag`.
 - Position is persisted (debounced on move/resize) to
   `<userData>/poke-banner-window.json` and restored on launch — clamped back
   onto a visible display if a monitor was unplugged.
@@ -88,8 +91,8 @@ assets) provides:
 The shell is publish-ready with `electron-builder` (config in
 `desktop/package.json`). It produces two free Windows builds:
 
-- **Installer** — `Poke-Banner-Setup-1.0.0.exe` (NSIS, per-user install)
-- **Portable** — `Poke-Banner-Portable-1.0.0.exe` (no install, run anywhere)
+- **Installer** — `Poke-Banner-Setup-<version>.exe` (NSIS, per-user install)
+- **Portable** — `Poke-Banner-Portable-<version>.exe` (no install, run anywhere)
 
 ```bash
 cd desktop
@@ -101,8 +104,16 @@ npm run dist         # builds ../dist (the web app), generates build/icon.png,
 The app icon is generated at build time from the same pixel-art poké-ball
 code (`make-icon.cjs` → `build/icon.png`, converted to `.ico` by
 electron-builder) — no binary assets to maintain. The packaged app loads
-`../dist` (Vite build) via `extraResources`, so the neon-green sky keying,
+`../dist` (Vite build) via `extraResources`, so the transparent scene,
 sprites, BGM and saves all work offline in the shipped exe.
+
+**Automatic updates:** the **installed** (NSIS) build updates itself from
+GitHub Releases — CI uploads `latest.yml` + `.blockmap` next to the
+installers, and electron-updater downloads/installs the next tag in the
+background (differential updates: only the changed bytes are downloaded,
+not the whole installer). The **portable** exe can't self-update
+(single-file); it's detected via `PORTABLE_EXECUTABLE_FILE` and the banner
+shows an amber **PORTABLE — MANUAL UPDATE** chip that opens the release page.
 
 ### Publishing with a permanent download URL
 
@@ -110,27 +121,60 @@ sprites, BGM and saves all work offline in the shipped exe.
 `.github/workflows/release.yml`. Push the project to a GitHub repo, then:
 
 ```bash
-git tag v1.0.0 && git push origin v1.0.0
+git tag v1.1.0 && git push origin v1.1.0
 ```
 
 CI builds both `.exe` files on Windows and attaches them to a GitHub
-Release automatically. Copy that release URL into `src/pages/Landing.tsx`
-(`DOWNLOAD_URL` constant, top of the file) and the landing page's
-"⬇ GET IT ON GITHUB" button points at the real download for everyone.
+Release automatically. The landing page's `DOWNLOAD_URL` constant
+(`src/pages/Landing.tsx`) points at `…/releases/latest`, so **every new
+tag you push becomes the download automatically** — no code change needed
+when publishing an update; just bump the version and tag it.
 
 **Manual alternative:** run `npm run dist` (above) and upload
 `Poke-Banner-Setup-*.exe` + `Poke-Banner-Portable-*.exe` to any free host
-(GitHub Releases, itch.io, etc.), then set the same `DOWNLOAD_URL`.
+(GitHub Releases, itch.io, etc.), then set the same `DOWNLOAD_URL` to that
+permanent link.
 
 Until a real URL is configured, the landing page shows a safe
 "⬇ RELEASE COMING SOON" chip instead of a dead link.
 
-No signing certificate is configured, so Windows SmartScreen will show a
-"More info → Run anyway" prompt — normal for free/unsigned fan projects.
+### Removing the SmartScreen warning (code-signing)
+
+Unsigned builds show Windows SmartScreen's "More info → Run anyway" prompt.
+To sign the `.exe` files in CI, the workflow supports **Azure Trusted
+Signing** (Microsoft's managed code-signing — no private key to store):
+
+1. Create an Azure Trusted Signing resource (see
+   <https://learn.microsoft.com/azure/trusted-signing/>), add your identity to
+   it, and create a certificate profile.
+2. Register a service principal and grant it the **Trusted Signing
+   Certificate Profile Signer** role on that profile.
+3. Add these GitHub repo secrets (the workflow reads them automatically):
+
+   | Secret | Value example |
+   | --- | ---
+   | `AZURE_TENANT_ID` | `11111111-2222-3333-4444-555555555555` |
+   | `AZURE_CLIENT_ID` | your service-principal app id |
+   | `AZURE_CLIENT_SECRET` | your service-principal client secret |
+   | `AZURE_ENDPOINT` | `https://weu.codesigning.azure.net` (your region) |
+   | `AZURE_ACCOUNT_NAME` | your Trusted Signing account name |
+   | `AZURE_PROFILE_NAME` | your certificate profile name |
+   | `AZURE_PUBLISHER_NAME` | e.g. `CN=Poke-Banner` |
+
+   Next release tag, CI injects `build.win.sign` via
+   `desktop/scripts/configure-azure-sign.cjs` and electron-builder signs both
+   `.exe` files. **Without the secrets the build simply stays unsigned** —
+   existing `git tag` releases keep working untouched.
+
+**Alternative (traditional certificate):** own a code-signing `.pfx`
+(OV/EV cert) and set `WIN_CSC_LINK` + `WIN_CSC_KEY_PASSWORD` secrets —
+electron-builder picks those up natively, no script involved.
 
 ## Notes
 
 - The window is `skipTaskbar`, `alwaysOnTop` ("screen-saver" level) and
   `setVisibleOnAllWorkspaces` on Windows.
-- The route `/desktop` renders the game directly (no auth wall) — see
-  `src/main.tsx`.
+- The routes `/desktop` (used by the shell itself) and its friendly public
+  alias `/play` render the game directly (no auth wall) — see `src/main.tsx`.
+  The landing page's header "▶ PLAY" button and hero "▶ PLAY IN BROWSER"
+  button both point at `/play`.

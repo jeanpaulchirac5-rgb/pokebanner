@@ -15,8 +15,8 @@ import {
 import { KANTO_151 } from "../constants";
 
 describe("i18n: language constants", () => {
-  it("supports exactly the four requested languages", () => {
-    expect(LANGS).toEqual(["en", "fr", "de", "es"]);
+  it("supports exactly the five requested languages", () => {
+    expect(LANGS).toEqual(["en", "fr", "de", "es", "ja"]);
     for (const lang of LANGS) {
       expect(isLanguage(lang)).toBe(true);
     }
@@ -29,21 +29,33 @@ describe("i18n: language constants", () => {
     expect(LANG_LABELS.fr).toBe("FR");
     expect(LANG_LABELS.de).toBe("DE");
     expect(LANG_LABELS.es).toBe("ES");
+    expect(LANG_LABELS.ja).toBe("JA");
   });
 });
 
 describe("i18n: t() UI strings", () => {
-  it("translates a core banner string into all four languages", () => {
+  it("translates a core banner string into all five languages", () => {
     const bag = {
       en: t("en", "bag"),
       fr: t("fr", "bag"),
       de: t("de", "bag"),
       es: t("es", "bag"),
+      ja: t("ja", "bag"),
     };
     expect(bag.en).toBe("BAG");
     expect(bag.fr).toBe("SAC");
     expect(bag.de).toBe("TASCHE");
     expect(bag.es).toBe("MOCHILA");
+    expect(bag.ja).toBe("バッグ");
+  });
+
+  it("every UI key has a Japanese row (no silent English fallbacks)", () => {
+    for (const key of uiKeys()) {
+      const ja = t("ja", key);
+      expect(ja.length).toBeGreaterThan(0);
+      // Japanese should never silently fall back to the raw key.
+      expect(ja).not.toBe(key);
+    }
   });
 
   it("falls back to English for missing language rows", () => {
@@ -94,6 +106,19 @@ describe("i18n: localized species names", () => {
     }
   });
 
+  it("covers every Kanto species with a Japanese name", () => {
+    for (const id of KANTO_151) {
+      expect(localizedName(id, "ja").length).toBeGreaterThan(0);
+    }
+  });
+
+  it("Japanese uses the official katakana names for the starters", () => {
+    expect(localizedName("bulbasaur", "ja")).toBe("フシギダネ");
+    expect(localizedName("charmander", "ja")).toBe("ヒトカゲ");
+    expect(localizedName("squirtle", "ja")).toBe("ゼニガメ");
+    expect(localizedName("mewtwo", "ja")).toBe("ミュウツー");
+  });
+
   it("Spanish falls back to the English names for Kanto", () => {
     expect(localizedName("bulbasaur", "es")).toBe(localizedName("bulbasaur", "en"));
     expect(localizedName("pidgey", "es")).toBe("Pidgey");
@@ -110,6 +135,8 @@ describe("i18n: move / item / champion names", () => {
     expect(localizedMoveName("vine-whip", "fr")).toBe("Fouet Lianes");
     expect(localizedMoveName("thunderbolt", "de")).toBe("Donnerblitz");
     expect(localizedMoveName("water-gun", "es")).toBe("Water Gun");
+    expect(localizedMoveName("tackle", "ja")).toBe("たいあたり");
+    expect(localizedMoveName("thunderbolt", "ja")).toBe("10まんボルト");
   });
 
   it("localizes item names", () => {
@@ -117,6 +144,8 @@ describe("i18n: move / item / champion names", () => {
     expect(localizedItemName("berry", "de")).toBe("Oranbeere");
     expect(localizedItemName("pokeball", "en")).toBe("Poké Ball");
     expect(localizedItemName("greatball", "es")).toBe("Great Ball");
+    expect(localizedItemName("pokeball", "ja")).toBe("モンスターボール");
+    expect(localizedItemName("revive", "ja")).toBe("げんきのかけら");
   });
 
   it("localizes the revive item in every language", () => {
@@ -131,6 +160,8 @@ describe("i18n: move / item / champion names", () => {
     expect(localizedChampionName("misty", "de")).toBe("Misty");
     expect(localizedChampionName("brock", "en")).toBe("Brock");
     expect(localizedChampionName("koga", "es")).toBe("Koga");
+    expect(localizedChampionName("brock", "ja")).toBe("タケシ");
+    expect(localizedChampionName("misty", "ja")).toBe("カスミ");
   });
 
   it("falls back to the raw id for unknown champions", () => {

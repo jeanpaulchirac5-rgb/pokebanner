@@ -4,10 +4,12 @@
 // Arena and Save render here; GamePanels imports them.
 // ---------------------------------------------------------------------------
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CHAMPIONS, GAME_VERSION, ITEMS, TUNING, getSpecies } from "./constants";
 import { LANG_LABELS, LANGS, t } from "./i18n";
 import { placeholderSprite, urlSpriteCombat } from "./presentation";
+import { compareVersions, fetchReleaseNotes } from "../lib/release";
+import type { ReleaseNote } from "../lib/release";
 import type { GamePanelsProps } from "./panels";
 import type { SaveData } from "./types";
 
@@ -60,6 +62,143 @@ export function CodexTab(props: GamePanelsProps) {
           packing at least once. Keep your eyes on the sky.
         </p>
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// NewsTab — in-game changelog fed by the GitHub release notes (the same
+// source the auto-updater uses), so the banner's NEWS panel always shows the
+// latest published version and what's in it.
+// ---------------------------------------------------------------------------
+
+function markdownLite(body: string): string {
+  // GitHub-flavored markdown → plain pixel text: strip headings, bullets,
+  // emphasis and code fences so the changelog renders in the tiny UI.
+  return body
+    .replace(/```[a-z]*\n?/gi, "")
+    .replace(/^#{1,4}\s*/gm, "")
+    .replace(/^\s*[-*+]\s+/gm, "• ")
+    .replace(/^\s*\d+\.\s+/gm, "• ")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/[*_`]/g, "")
+    .trim();
+}
+
+export function NewsTab(props: GamePanelsProps) {
+  const lang = props.save.language;
+  const [state, setState] = useState<"loading" | "error" | "done">("loading");
+  const [notes, setNotes] = useState<ReleaseNote[]>([]);
+
+  const load = () => {
+    setState("loading");
+    fetchReleaseNotes(5)
+      .then((rows) => {
+        setNotes(rows);
+        setState("done");
+      })
+      .catch(() => setState("error"));
+  };
+
+  useEffect(load, []);
+
+  // Installed vs latest diff: drives the version banner. notes[0] is the
+  // newest GitHub release (API returns them newest-first).
+  const latestTag = notes[0]?.tag ?? null;
+  const cmp = latestTag ? compareVersions(GAME_VERSION, latestTag) : 0;
+
+  return (
+    <div className="space-y-2 text-[7px]">
+      <div className="border-2 border-ink bg-blue-100 p-1.5">
+        <div className="font-bold uppercase">📰 {t(lang, "news")}</div>
+        <div className="text-ink/70">
+          POKEBANNER v{GAME_VERSION} — what's new in each release (from GitHub).
+        </div>
+      </div>
+
+      {/* Installed vs latest version banner + differential-update note.
+          Only when the feed loaded; the note explains the two update paths
+          (NSIS differential auto-update vs portable manual download). */}
+      {state === "done" && latestTag && (
+        <div
+          className={`border-2 border-ink p-1.5 ${
+            cmp < 0
+              ? "bg-yellow-100"
+              : cmp === 0
+                ? "bg-green-100"
+                : "bg-blue-100"
+          }`}
+        >
+          <div className="flex items-center gap-1">
+            <span className="font-bold uppercase">
+              {t(lang, "news-installed")}: v{GAME_VERSION}
+            </span>
+            <span className="text-ink/60">→</span>
+            <span className="font-bold uppercase">
+              {t(lang, "news-latest")}: {latestTag}
+            </span>
+            <span className="ml-auto font-bold">
+              {cmp < 0
+                ? `⬇ ${t(lang, "news-update-avail")}`
+                : cmp === 0
+                  ? t(lang, "news-up-to-date")
+                  : `✨ ${t(lang, "news-ahead")}`}
+            </span>
+          </div>
+          <div className="mt-1 text-ink/70">{t(lang, "news-diff-note")}</div>
+        </div>
+      )}
+
+      {state === "loading" && (
+        <div className="border-2 border-ink bg-white p-1.5 text-ink/70">
+          {t(lang, "news-loading")}
+        </div>
+      )}
+
+      {state === "error" && (
+        <div className="border-2 border-ink bg-red-50 p-1.5">
+          <div className="text-ink/80">{t(lang, "news-error")}</div>
+          <button className="nb-btn mt-1 bg-yellow-300" onClick={load}>
+            {t(lang, "news-retry")}
+          </button>
+        </div>
+      )}
+
+      {state === "done" && notes.length === 0 && (
+        <div className="border-2 border-ink bg-white p-1.5 text-ink/70">
+          {t(lang, "news-empty")}
+        </div>
+      )}
+
+      {state === "done" &&
+        notes.map((n) => (
+          <div key={n.tag} className="border-2 border-ink bg-white p-1.5">
+            <div className="flex items-baseline gap-1">
+              <span className="font-bold uppercase">⬇ {n.tag}</span>
+              {n.publishedAt && (
+                <span className="text-ink/50">
+                  {new Date(n.publishedAt).toLocaleDateString()}
+                </span>
+              )}
+              {n.htmlUrl && (
+                <a
+                  href={n.htmlUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="ml-auto text-ink/60 underline hover:text-ink"
+                >
+                  ↗
+                </a>
+              )}
+            </div>
+            {n.name && <div className="font-bold">{n.name}</div>}
+            {n.body && (
+              <div className="mt-0.5 whitespace-pre-wrap text-ink/80">
+                {markdownLite(n.body)}
+              </div>
+            )}
+          </div>
+        ))}
     </div>
   );
 }

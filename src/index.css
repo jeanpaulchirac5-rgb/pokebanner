@@ -1,5 +1,6 @@
 /* Pixel + neobrutalism game theme
-   - neon-green sky stays exactly #00ff00 (keyed out by the desktop shell)
+   - the banner's sky is a living pixel-blue gradient (src/game/presentation.ts),
+     tinted amber at sunset and indigo at night — no chroma key anymore
    - every img uses image-rendering: pixelated for crisp GBA-style sprites
    - Press Start 2P (pixel font) is loaded via <link> in index.html */
 @import "tailwindcss";
@@ -223,6 +224,88 @@
   background-repeat: repeat-x;
   background-size: 128px 8px;
   animation: ground-scroll 4s linear infinite;
+}
+
+/* Starter-selection overlay: the very first launch paints the banner the
+   same pixel blue as the day sky. The overlay is the only direct-child
+   .game-sky of the banner strip, so this descends exactly onto it — it's the
+   sole source of the blue (the old green utility class is long gone). The
+   desktop shell swaps it for a translucent scrim (see html.desktop below). */
+.game-sky > .game-sky {
+  background-color: #6ec4f8;
+}
+
+/* Always-on ambient life: the sun/moon pulse, and per-biome pixel motes
+   (pollen, leaves, crystal sparkles) drift through the sky even while the
+   Pokémon stands still. --sway is set per-mote from the JSX. */
+@keyframes celestial-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.3);
+  }
+}
+.celestial-pulse {
+  animation: celestial-pulse 2.6s steps(3) infinite;
+}
+@keyframes ambient-fall {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(calc(var(--sway, 4px) * -1), 34px);
+    opacity: 0;
+  }
+}
+.ambient-fall {
+  animation: ambient-fall 6s linear infinite;
+}
+@keyframes ambient-rise {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(calc(var(--sway, 4px) * 1), -32px);
+    opacity: 0;
+  }
+}
+.ambient-rise {
+  animation: ambient-rise 6s linear infinite;
+}
+@keyframes ambient-drift {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(calc(var(--sway, 4px) * 3), 8px);
+    opacity: 0;
+  }
+}
+.ambient-drift {
+  animation: ambient-drift 6s linear infinite;
 }
 
 /* Battle feel */
@@ -538,16 +621,130 @@
   animation: arena-pulse 0.8s steps(2) infinite;
 }
 
+/* Per-species idle animations: the leader moves gently while standing still
+   (the turn-around pause at each edge, and the tray pause). idleAnimClass()
+   in presentation.ts picks the class per species; every keyframe scales by
+   --flip so the sprite keeps its facing direction while the animation takes
+   over its transform. */
+@keyframes idle-sway {
+  0%,
+  100% {
+    transform: scaleX(var(--flip, 1)) rotate(0deg) translateY(0);
+  }
+  50% {
+    transform: scaleX(var(--flip, 1)) rotate(-5deg) translateY(-1.5px);
+  }
+}
+.idle-sway {
+  animation: idle-sway 1.4s ease-in-out infinite;
+}
+@keyframes idle-hop {
+  0%,
+  100% {
+    transform: scaleX(var(--flip, 1)) translateY(0);
+  }
+  35% {
+    transform: scaleX(var(--flip, 1)) translateY(-3px);
+  }
+  55% {
+    transform: scaleX(var(--flip, 1)) translateY(0);
+  }
+}
+.idle-hop {
+  animation: idle-hop 0.9s steps(3) infinite;
+}
+@keyframes idle-nod {
+  0%,
+  100% {
+    transform: scaleX(var(--flip, 1)) rotate(0deg) translateY(0);
+  }
+  30% {
+    transform: scaleX(var(--flip, 1)) rotate(-7deg) translateY(-1px);
+  }
+  70% {
+    transform: scaleX(var(--flip, 1)) rotate(7deg) translateY(-1px);
+  }
+}
+.idle-nod {
+  animation: idle-nod 2.2s ease-in-out infinite;
+}
+@keyframes idle-wobble {
+  0%,
+  100% {
+    transform: scaleX(var(--flip, 1)) rotate(0deg);
+  }
+  50% {
+    transform: scaleX(var(--flip, 1)) rotate(-8deg);
+  }
+}
+.idle-wobble {
+  animation: idle-wobble 1.1s ease-in-out infinite;
+}
+@keyframes idle-float {
+  0%,
+  100% {
+    transform: scaleX(var(--flip, 1)) translateY(0);
+  }
+  50% {
+    transform: scaleX(var(--flip, 1)) translateY(-3.5px);
+  }
+}
+.idle-float {
+  animation: idle-float 2.6s ease-in-out infinite;
+}
+@keyframes idle-rock {
+  0%,
+  100% {
+    transform: scaleX(var(--flip, 1)) rotate(0deg) translateY(0);
+  }
+  50% {
+    transform: scaleX(var(--flip, 1)) rotate(-2.5deg) translateY(1px);
+  }
+}
+.idle-rock {
+  animation: idle-rock 3s ease-in-out infinite;
+}
+@keyframes idle-flutter {
+  0%,
+  100% {
+    transform: scaleX(var(--flip, 1)) translateY(0) rotate(-2deg);
+  }
+  50% {
+    transform: scaleX(var(--flip, 1)) translateY(-2px) rotate(2deg);
+  }
+}
+.idle-flutter {
+  animation: idle-flutter 0.8s steps(2) infinite;
+}
+
 /* ---------------------------------------------------------------------------
    Electron desktop shell (see desktop/)
-   The sky is painted neon green (#00ff00) in the browser; in the shell the
-   <html class="desktop"> override swaps it for TRUE per-pixel alpha so the
-   banner floats over the desktop with no green fringing. The sky is the drag
-   handle; every interactive element inside is no-drag.
+   The shell window is transparent (desktop/main.cjs backgroundColor
+   #00000000), so the browser keeps its living blue sky while the desktop
+   strip floats the scene straight over the wallpaper: the sky backdrop,
+   tiles and page background go transparent, leaving the drifting clouds,
+   sun/moon, scenery, sprites and ambient particles on show. The banner
+   remains the window drag handle; every interactive element inside is
+   no-drag.
 --------------------------------------------------------------------------- */
+html.desktop body {
+  background: transparent !important;
+}
+html.desktop .banner-page {
+  background-color: transparent !important;
+}
 html.desktop .game-sky {
   background-color: transparent !important;
   -webkit-app-region: drag;
+}
+/* Starter-selection overlay: a translucent dark scrim so the buttons stay
+   readable over any wallpaper. */
+html.desktop .game-sky > .game-sky {
+  background-color: rgba(10, 14, 40, 0.72) !important;
+}
+/* Soften the night tint so the wallpaper still shows through. */
+html.desktop .night-tint {
+  opacity: 0.4;
 }
 html.desktop .game-sky button,
 html.desktop .game-sky a,
@@ -661,4 +858,34 @@ html.desktop #game-panel-area {
   border: 1px solid #111;
   border-radius: 50%;
   background: #fff;
+}
+
+/* In-banner auto-update chip: green pulse while an update is ready to
+   install (desktop shell only). */
+@keyframes update-ready-pulse {
+  0%, 100% {
+    background-color: #5ce65c;
+    box-shadow: 0 0 0 0 rgba(92, 230, 92, 0.7);
+  }
+  50% {
+    background-color: #b8ffb8;
+    box-shadow: 0 0 0 3px rgba(92, 230, 92, 0);
+  }
+}
+.update-ready-pulse {
+  animation: update-ready-pulse 1s steps(2) infinite;
+}
+
+/* Portable build chip: amber pulse telling portable users to grab the new
+   exe from GitHub (portable apps can't self-update). */
+@keyframes update-portable-pulse {
+  0%, 100% {
+    background-color: #ffb74d;
+  }
+  50% {
+    background-color: #ffe0b2;
+  }
+}
+.update-portable-pulse {
+  animation: update-portable-pulse 1.2s steps(2) infinite;
 }

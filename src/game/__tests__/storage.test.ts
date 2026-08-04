@@ -1,18 +1,21 @@
 import { describe, expect, it } from "vitest";
 import { createSave } from "../engine";
 import {
+  LANG_KEY,
   V1_KEY,
   V2_KEY,
   checksum,
   clearSave,
   exportSave,
+  getPreferredLanguage,
   importSave,
   isValidSave,
   loadSave,
   persistSave,
   roundTrip,
+  setPreferredLanguage,
 } from "../storage";
-import type { SaveData, SaveV1 } from "../types";
+import type { Language, SaveData, SaveV1 } from "../types";
 
 /** In-memory StorageLike used to fake localStorage. */
 function fakeStorage(initial: Record<string, string> = {}): StorageLike {
@@ -47,6 +50,53 @@ function v1Save(): SaveV1 {
     steps: 340,
   };
 }
+
+describe("storage: preferred language (landing picker)", () => {
+  it("defaults to English on empty storage", () => {
+    expect(getPreferredLanguage(fakeStorage())).toBe("en");
+  });
+
+  it("returns the stored language and ignores junk values", () => {
+    expect(getPreferredLanguage(fakeStorage({ [LANG_KEY]: "fr" }))).toBe("fr");
+    expect(getPreferredLanguage(fakeStorage({ [LANG_KEY]: "it" }))).toBe("en");
+    expect(getPreferredLanguage(fakeStorage({ [LANG_KEY]: "42" }))).toBe("en");
+  });
+
+  it("accepts every supported language", () => {
+    const langs: Language[] = ["en", "fr", "de", "es"];
+    for (const l of langs) {
+      const storage = fakeStorage();
+      setPreferredLanguage(storage, l);
+      expect(getPreferredLanguage(storage)).toBe(l);
+    }
+  });
+
+  it("setPreferredLanguage round-trips through getPreferredLanguage", () => {
+    const storage = fakeStorage();
+    setPreferredLanguage(storage, "de");
+    expect(getPreferredLanguage(storage)).toBe("de");
+  });
+
+  it("never creates a save on its own (starter screen still shows)", () => {
+    const storage = fakeStorage();
+    setPreferredLanguage(storage, "es");
+    expect(loadSave(storage)).toBeNull();
+  });
+
+  it("patches an existing v2 save so the game switches on next load", () => {
+    const storage = fakeStorage();
+    persistSave(createSave("bulbasaur"), storage);
+    setPreferredLanguage(storage, "fr");
+    const loaded = loadSave(storage);
+    expect(loaded?.language).toBe("fr");
+  });
+
+  it("survives a corrupt v2 payload when patching", () => {
+    const storage = fakeStorage({ [V2_KEY]: "{not json" });
+    expect(() => setPreferredLanguage(storage, "de")).not.toThrow();
+    expect(getPreferredLanguage(storage)).toBe("de");
+  });
+});
 
 describe("storage: load/persist", () => {
   it("loadSave returns null on empty storage", () => {

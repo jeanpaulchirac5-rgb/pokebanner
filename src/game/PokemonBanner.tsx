@@ -1,11 +1,12 @@
 // ---------------------------------------------------------------------------
-// PokemonBanner — the 60px neon-green banner game.
+// PokemonBanner — the 60px banner game.
 //
 // A thin horizontal strip (60px × 100vw) with pixel-art Gen-1 sprites, a
 // scrolling parallax ground, auto-battles every 20s, capture/heal buttons,
 // evolution sequences, gym champions, a traveling shop, and a day/night
-// biome system. The sky stays exactly #00ff00 so an Electron wrapper can key
-// it out and place the banner above the Windows taskbar.
+// biome system with a living pixel-blue sky (see src/game/presentation.ts)
+// that shifts to amber at sunset and indigo at night, plus always-animating
+// ambient motes (pollen, leaves, crystal sparkles) per biome.
 //
 // All game math lives in the pure engine (src/game/engine.ts) so the loop is
 // fully unit-testable; this file only orchestrates timers and rendering.
@@ -65,16 +66,28 @@ import {
   timePhase,
   applyItemOn,
 } from "./engine";
-import { clearSave, exportSave, importSave, loadSave, persistSave } from "./storage";
 import {
+  clearSave,
+  exportSave,
+  getPreferredLanguage,
+  importSave,
+  loadSave,
+  persistSave,
+  setPreferredLanguage,
+} from "./storage";
+import {
+  ambientParticles,
   backdropSvg,
   celestialForPhase,
+  cloudsSvg,
   groundSvg,
+  idleAnimClass,
   moveFxByName,
   nurseJoySprite,
   placeholderSprite,
   preloadSprites,
   scenerySvg,
+  skyColorFor,
   skySvg,
   urlSpriteCombat,
   urlSpriteShiny,
@@ -82,6 +95,7 @@ import {
 } from "./presentation";
 import {
   LANG_LABELS,
+  LANGS,
   localizedItemName,
   localizedName,
   t,
@@ -140,6 +154,8 @@ interface GameRef {
   encounterDelay: number;
   battleTimer: number;
   pauseLeft: number;
+  /** Frames remaining in the turn-around idle pause (~0.5s at each edge). */
+  idlePause: number;
   message: string | null;
   panel: PanelTab | null;
   messageUntil: number;
@@ -187,6 +203,7 @@ interface GameRef {
 
 const WALK_PX_PER_FRAME = 2;
 const FRAME_MS = 100;
+const IDLE_PAUSE_FRAMES = 5; // ~0.5s hesitation + sway at each turn-around
 
 /** Small animated badge showing a battle status effect above a sprite. */
 function StatusIcon({
@@ -208,6 +225,10 @@ function StatusIcon({
 
 export default function PokemonBanner() {
   const [tick, setTick] = useState(0);
+  const [updateStatus, setUpdateStatus] = useState<{
+    state: "idle" | "downloading" | "ready" | "portable";
+    version: string | null;
+  }>({ state: "idle", version: null });
   const g = useRef<GameRef | null>(null);
   const viewportW = useRef(typeof window !== "undefined" ? window.innerWidth : 1200);
   const rng = () => Math.random();
@@ -233,6 +254,7 @@ export default function PokemonBanner() {
       encounterDelay: nextEncounterDelay(rng),
       battleTimer: 0,
       pauseLeft: 0,
+      idlePause: 0,
       message: null,
       panel: null,
       messageUntil: 0,
@@ -273,22 +295,29 @@ export default function PokemonBanner() {
     try {
       if (typeof localStorage !== "undefined" && g.current?.save) {
         persistSave(g.current.save, localStorage);
+        // Keep the landing page's preferred-language key in sync with the
+        // save so the home-screen picker always reflects the active language.
+        setPreferredLanguage(localStorage, g.current.save.language);
       }
     } catch {
       /* storage unavailable */
     }
   };
+  /** Preferred language from the landing page's picker (LANG_KEY). */
+  const prefLang = (): Language =>
+    typeof localStorage !== "undefined" ? getPreferredLanguage(localStorage) : "en";
   /** Localized message helper — reads the save's language. */
   const tr = (key: string, vars?: Record<string, string | number>) => {
     const s = g.current!;
-    // No save yet during the starter-selection screen — default to English
-    // so the choose phase can render its localized starter buttons.
-    return t(s.save?.language ?? "en", key, vars);
+    // No save yet during the starter-selection screen — fall back to the
+    // language picked on the landing page so the choose phase renders the
+    // localized starter buttons.
+    return t(s.save?.language ?? prefLang(), key, vars);
   };
   /** Localized species name helper. */
   const trName = (speciesId: string) => {
     const s = g.current!;
-    return localizedName(speciesId, s.save?.language ?? "en");
+    return localizedName(speciesId, s.save?.language ?? prefLang());
   };
 
   // ---------------------------------------------------------------
@@ -316,13 +345,25 @@ export default function PokemonBanner() {
       };
 
       if (s.phase === "walking") {
+        // Turn-around idle: at each edge the leader hesitates ~0.5s and plays
+        // its species idle animation (see idleAnimClass in presentation.ts)
+        // before walking back. The tray pause also stops the walk, so the
+        // idle animation plays there too.
+        if (s.idlePause > 0) {
+          s.idlePause -= 1;
+          frame();
+          rerender();
+          return;
+        }
         // walk
         const rightEdge = viewportW.current - 80;
         let nx = s.leaderX + s.dir * WALK_PX_PER_FRAME;
         if (nx >= rightEdge) {
+          s.idlePause = IDLE_PAUSE_FRAMES;
           nx = rightEdge;
           s.dir = -1;
         } else if (nx <= 20) {
+          s.idlePause = IDLE_PAUSE_FRAMES;
           nx = 20;
           s.dir = 1;
         }
@@ -718,7 +759,7 @@ export default function PokemonBanner() {
   // ---------------------------------------------------------------
   const chooseStarter = (id: string) => {
     const s = g.current!;
-    s.save = createSave(id);
+    s.save = { ...createSave(id), language: prefLang() };
     s.phase = "walking";
     s.leaderX = 40;
     preloadSprites([id]);
@@ -1013,12 +1054,13 @@ export default function PokemonBanner() {
     rerender();
   };
 
-  // Language switcher — cycles EN → FR → DE → ES, persisted with the save.
+  // Language switcher — cycles EN → FR → DE → ES → JA, persisted with the save.
   const cycleLanguage = () => {
     const s = g.current!;
-    const langs: Language[] = ["en", "fr", "de", "es"];
+    const langs = LANGS;
     const next = langs[(langs.indexOf(s.save.language) + 1) % langs.length];
     s.save = { ...s.save, language: next };
+    if (typeof localStorage !== "undefined") setPreferredLanguage(localStorage, next);
     s.message = LANG_LABELS[next];
     s.messageUntil = Date.now() + 1000;
     persist();
@@ -1192,6 +1234,27 @@ export default function PokemonBanner() {
     };
   }, []);
 
+  // Desktop shell: auto-update status → in-banner chip. The main process
+  // pushes state changes (idle → downloading → ready); we also pull once on
+  // mount so a reload after the update downloaded still shows the indicator.
+  useEffect(() => {
+    const api = window.desktopAPI;
+    if (!api) return;
+    const onUpdate = (s: {
+      state: "idle" | "downloading" | "ready" | "portable";
+      version: string | null;
+    }) => {
+      setUpdateStatus(s);
+    };
+    api.onUpdateStatus?.(onUpdate);
+    api.getUpdateStatus?.().then(onUpdate).catch(() => {
+      /* pull is best-effort — pushes keep us fresh */
+    });
+    return () => {
+      api.offUpdateStatus?.(onUpdate);
+    };
+  }, []);
+
   // ---------------------------------------------------------------
   // Hotkeys while the banner is focused (work in browser + desktop shell):
   //   M — mute/unmute all audio (tray checkbox stays in sync via report)
@@ -1298,6 +1361,15 @@ export default function PokemonBanner() {
         ? "rgba(255,140,0,0.28)"
         : "transparent";
   const walking = s.phase === "walking";
+  // Idle animation: active during the turn-around pause and while the tray
+  // pause freezes the walk (rendering continues then, so it's visible). The
+  // class is per-species (idleAnimClass in presentation.ts).
+  const idling = walking && (s.paused || s.idlePause > 0);
+  const idleClass = leader ? idleAnimClass(leader.speciesId) : "idle-sway";
+  // Electron shell: the window is transparent, so the sky tile swaps to the
+  // clouds-only variant and the CSS paints the scene straight on the desktop.
+  const desktopShell =
+    typeof window !== "undefined" && Boolean(window.desktopAPI?.isDesktop);
   const inBattle = s.phase === "battle";
   // Hidden easter egg availability (computed in render where save is in scope)
   const eggReady =
@@ -1310,13 +1382,46 @@ export default function PokemonBanner() {
     : placeholderSprite("empty");
 
   return (
-    <div className="flex min-h-screen flex-col bg-white">
+    <div className="banner-page flex min-h-screen flex-col bg-white">
       {/* The 60px banner — top of the screen.
-          game-sky = the neon-green keyed out by the Electron shell. */}
+          game-sky = a living pixel-blue sky (no chroma key anymore). The
+          flat backdrop matches the sky tile's bottom band so there is no
+          seam at any time of day. */}
       <div
         className="game-sky relative w-full overflow-hidden border-b-4 border-ink"
-        style={{ height: TUNING.bannerHeight, backgroundColor: TUNING.neonGreen }}
+        style={{ height: TUNING.bannerHeight, backgroundColor: skyColorFor(phase) }}
       >
+        {/* Desktop auto-update chip: downloading → clickable when ready.
+            Only present in the Electron shell (window.desktopAPI), so the
+            browser build never shows it. Sits below the pause chip when the
+            tray pause is active so the two never overlap. Portable builds
+            (can't self-update) show a manual-download hint that opens the
+            GitHub releases page. */}
+        {updateStatus.state !== "idle" && (
+          <div className={`absolute left-1 z-30 ${s.paused ? "top-[17px]" : "top-1"}`}>
+            {updateStatus.state === "ready" ? (
+              <button
+                onClick={() => window.desktopAPI?.restartAndInstall?.()}
+                className="nb-btn update-ready-pulse bg-green-300 !px-1.5 !py-0.5 text-[6px]"
+                title={tr("update-ready")}
+              >
+                ⬇ v{updateStatus.version} {tr("update-ready")}
+              </button>
+            ) : updateStatus.state === "portable" ? (
+              <button
+                onClick={() => window.desktopAPI?.openReleases?.()}
+                className="nb-btn update-portable-pulse bg-orange-300 !px-1.5 !py-0.5 text-[6px]"
+                title={tr("update-portable")}
+              >
+                ⬇ {tr("update-portable")}
+              </button>
+            ) : (
+              <div className="nb-panel bg-blue-200 px-1.5 py-0.5 text-[6px] text-ink">
+                ⬇ v{updateStatus.version} {tr("update-downloading")}
+              </div>
+            )}
+          </div>
+        )}
         {/* Notification flash (shiny = red, arena = blue) */}
         {s.notif && (
           <div
@@ -1326,22 +1431,24 @@ export default function PokemonBanner() {
           />
         )}
 
-        {/* Sky: drifting pixel clouds + birds. Pauses with the scenery; the
-            tile is seeded by the save's startedAt so it never churns. */}
+        {/* Sky: drifting pixel clouds + birds. Always animating so the world
+            stays alive even when idle; the tile is seeded by the save's
+            startedAt so it never churns. */}
         <div
           className="scenery-scroll-sky absolute inset-x-0 top-0 h-[28px]"
           style={{
-            backgroundImage: `url("${skySvg(save.startedAt, phase)}")`,
-            animationPlayState: walking ? "running" : "paused",
+            // Desktop shell: transparent window → drift the clouds straight
+            // over the wallpaper; the browser keeps the full blue sky tile.
+            backgroundImage: `url("${desktopShell ? cloudsSvg(save.startedAt, phase) : skySvg(save.startedAt, phase)}")`,
           }}
         />
 
-        {/* Celestial: a static sun that arcs by day, sinks low at sunset,
-            and yields to a rising moon at night (never scrolls/tiles). */}
+        {/* Celestial: a pulsing sun by day, sinking low at sunset, and a
+            rising moon at night (never scrolls/tiles). */}
         {celestialForPhase(phase).map((c, i) => (
           <div
             key={`${phase}-${i}`}
-            className="pointer-events-none absolute z-[1]"
+            className="celestial-pulse pointer-events-none absolute z-[1]"
             style={{
               left: `${c.leftPct}%`,
               top: c.topPx,
@@ -1350,6 +1457,27 @@ export default function PokemonBanner() {
               backgroundImage: `url("${c.uri}")`,
               backgroundSize: `${c.size}px ${c.size}px`,
             }}
+          />
+        ))}
+
+        {/* Biome ambient motes — pollen, leaves or crystal sparkles drifting
+            through the sky. Always animating (never gated on walking). */}
+        {ambientParticles(biome.id, save.startedAt, phase).map((p, i) => (
+          <span
+            key={`amb-${i}`}
+            className={`ambient-${p.kind} pointer-events-none absolute z-[2]`}
+            style={
+              {
+                left: `${p.leftPct}%`,
+                top: p.topPx,
+                width: p.sizePx,
+                height: p.sizePx,
+                backgroundColor: p.color,
+                animationDuration: `${p.durSec}s`,
+                animationDelay: `${p.delaySec}s`,
+                "--sway": `${p.swayPx}px`,
+              } as React.CSSProperties
+            }
           />
         ))}
 
@@ -1382,7 +1510,7 @@ export default function PokemonBanner() {
             style={{ backgroundImage: `url("${groundSvg(biome)}")` }}
           />
           {phaseTint !== "transparent" && (
-            <div className="absolute inset-0" style={{ backgroundColor: phaseTint }} />
+            <div className="night-tint absolute inset-0" style={{ backgroundColor: phaseTint }} />
           )}
         </div>
 
@@ -1443,11 +1571,15 @@ export default function PokemonBanner() {
           <img
             src={leaderSprite}
             alt=""
-            className="absolute bottom-1 z-10 h-10 w-10 pixelated"
-            style={{
-              left: s.leaderX,
-              transform: s.dir === -1 ? "scaleX(-1)" : undefined,
-            }}
+            className={`absolute bottom-1 z-10 h-10 w-10 pixelated ${idling ? idleClass : ""}`}
+            style={
+              {
+                left: s.leaderX,
+                transform: s.dir === -1 ? "scaleX(-1)" : undefined,
+                // Idle keyframes scale by this so the flip direction is kept.
+                "--flip": s.dir === -1 ? -1 : 1,
+              } as React.CSSProperties
+            }
             onError={(e) => {
               const el = e.currentTarget as HTMLImageElement;
               if (el.src.includes("-shiny")) {
@@ -1457,6 +1589,15 @@ export default function PokemonBanner() {
               }
             }}
           />
+          {/* Debug readout while the tray pause freezes the game: the leader's
+              localized species + its species-specific idle animation class. */}
+          {s.paused && (
+            <div className="pointer-events-none absolute left-1 top-6 z-30">
+              <div className="nb-panel px-1.5 py-0.5 text-[6px] text-ink">
+                {trName(leader.speciesId)} · {idleClass}
+              </div>
+            </div>
+          )}
           </>
         )}
 
@@ -1471,8 +1612,15 @@ export default function PokemonBanner() {
           <img
             src={urlSpriteCombat(s.enemy.pokemon.speciesId)}
             alt=""
-            className="absolute bottom-1 z-10 h-10 w-10 pixelated"
-            style={{ left: s.enemy.x, transform: "scaleX(-1)" }}
+            className={`absolute bottom-1 z-10 h-10 w-10 pixelated ${idleAnimClass(s.enemy.pokemon.speciesId)}`}
+            style={
+              {
+                left: s.enemy.x,
+                transform: "scaleX(-1)",
+                // Keep the mirror while the species idle animation plays.
+                "--flip": -1,
+              } as React.CSSProperties
+            }
             onError={(e) => {
               (e.currentTarget as HTMLImageElement).src = placeholderSprite(
                 s.enemy!.pokemon.speciesId,
@@ -1734,7 +1882,7 @@ export default function PokemonBanner() {
 
         {/* Starter selection screen */}
         {s.phase === "choose" && (
-          <div className="game-sky absolute inset-0 z-40 flex items-center justify-center gap-3 bg-[#00ff00]">
+          <div className="game-sky absolute inset-0 z-40 flex items-center justify-center gap-3">
             {["bulbasaur", "charmander", "squirtle"].map((id) => (
               <button
                 key={id}

@@ -31,7 +31,20 @@ export const emailOtp = Email({
         },
       );
     } catch (error) {
-      throw new Error(JSON.stringify(error));
+      // Unwrap axios errors so a 4xx (e.g. 400 from a stale API key) surfaces
+      // as a readable message instead of a JSON blob the user can't parse.
+      const axiosErr = error as {
+        response?: { status?: number; data?: { error?: string } };
+        message?: string;
+      };
+      const detail = axiosErr.response?.data?.error;
+      const status = axiosErr.response?.status;
+      const message =
+        detail ||
+        (status ? `Email service error (${status}).` : "") ||
+        axiosErr.message ||
+        "Failed to send the verification code.";
+      throw new Error(message);
     }
   },
 });

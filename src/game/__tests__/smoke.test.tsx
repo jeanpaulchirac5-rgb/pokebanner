@@ -141,6 +141,27 @@ describe("PokemonBanner render smoke", () => {
     expect(container.textContent ?? "").not.toContain("GRASS");
     await unmount(root, container);
   });
+
+  it("shows the portable manual-update chip when the shell is a portable build", async () => {
+    // Portable builds can't self-update; the main process flags state
+    // "portable" and the banner must surface the manual-download hint.
+    (window as { desktopAPI?: unknown }).desktopAPI = {
+      isDesktop: true,
+      platform: "win32",
+      setPanelHeight: noop,
+      close: noop,
+      reportVolume: noop,
+      getUpdateStatus: async () => ({ state: "portable", version: null }),
+      onUpdateStatus: noop,
+      offUpdateStatus: noop,
+    };
+    persistSave(mockSave(), localStorage);
+    const { root, container } = await mount(<PokemonBanner />);
+    const text = container.textContent ?? "";
+    expect(text).toContain("PORTABLE");
+    await unmount(root, container);
+    delete (window as { desktopAPI?: unknown }).desktopAPI;
+  });
 });
 
 describe("GamePanels render smoke (every tab)", () => {
@@ -157,8 +178,19 @@ describe("GamePanels render smoke (every tab)", () => {
     "shop",
     "arena",
     "code",
+    "news",
     "save",
   ];
+
+  beforeEach(() => {
+    // NewsTab fetches release notes on mount — stub the network so the tab
+    // renders its empty state deterministically (no real GitHub calls).
+    globalThis.fetch = (async () =>
+      ({
+        ok: true,
+        json: async () => [],
+      })) as unknown as typeof fetch;
+  });
 
   it.each(TABS)("renders the %s tab without crashing", async (tab) => {
     const { root, container } = await mount(

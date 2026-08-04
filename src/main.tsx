@@ -86,7 +86,7 @@ const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
 
 
 /** Electron desktop shell mode: marks <html class="desktop"> so the CSS can
- *  key out the neon-green sky to true alpha (see index.css + desktop/). */
+ *  enable the drag handle on the banner sky (see index.css + desktop/). */
 function DesktopMode() {
   useEffect(() => {
     if (window.desktopAPI?.isDesktop) {
@@ -148,6 +148,8 @@ createRoot(document.getElementById("root")!).render(
               />
               {/* No-auth entry used by the Electron desktop shell */}
               <Route path="/desktop" element={<DesktopGame />} />
+              {/* Short friendly alias for the bare banner game */}
+              <Route path="/play" element={<DesktopGame />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

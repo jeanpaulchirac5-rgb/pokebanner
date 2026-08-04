@@ -4,7 +4,7 @@
 // ---------------------------------------------------------------------------
 
 /** Supported game languages (in-game switcher, saved per save). */
-export type Language = "en" | "fr" | "de" | "es";
+export type Language = "en" | "fr" | "de" | "es" | "ja";
 
 export type TypeName =
   | "normal"
@@ -120,7 +120,7 @@ export interface SaveData {
   lastSaveAt: number;
   /** N-hotkey preference: BGM loop on/off (SFX unaffected). Persisted with the save. */
   bgmEnabled: boolean;
-  /** Selected display language ("en" | "fr" | "de" | "es"). */
+  /** Selected display language ("en" | "fr" | "de" | "es" | "ja"). */
   language: Language;
 }
 

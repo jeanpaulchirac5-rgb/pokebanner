@@ -1,17 +1,20 @@
 // ---------------------------------------------------------------------------
 // Poke-Banner desktop shell (Electron main process).
 //
-// Creates a frameless, transparent, always-on-top window. By default it docks
-// directly ABOVE the Windows taskbar (bottom of the work area), but the strip
-// is freely draggable anywhere on the desktop — the renderer marks the neon
+// Creates a frameless, always-on-top window. By default it docks directly
+// ABOVE the Windows taskbar (bottom of the work area), but the strip is
+// freely draggable anywhere on the desktop — the renderer marks the banner
 // sky as an `-webkit-app-region: drag` handle. The window's position is
 // persisted across restarts, and when a Bag/PC/Dex/Shop/Arena panel opens the
 // window grows IN PLACE (upward when docked near the bottom edge, downward
 // when placed near the top) instead of snapping back to the taskbar.
 //
-// The neon-green sky (#00ff00) is keyed out in the renderer
-// (html.desktop .game-sky { background: transparent }) so the banner appears
-// to float on the desktop with zero artifacts or fringing.
+// The window is TRANSPARENT (backgroundColor #00000000): the browser keeps
+// its living blue sky, but on the desktop the strip floats the scene
+// directly over the wallpaper — the sky backdrop goes transparent while the
+// drifting clouds (cloudsSvg), sun/moon, scenery, sprites and ambient
+// particles stay on show. The starter-selection overlay becomes a translucent
+// scrim so its buttons stay readable over any wallpaper.
 //
 // Loading:
 //   - dev:      POKEBANNER_URL env (defaults to http://localhost:5173/desktop)
@@ -20,7 +23,7 @@
 // Run (from this folder):  npm install && npm start
 // ---------------------------------------------------------------------------
 
-const { app, BrowserWindow, screen, ipcMain, Tray, Menu } = require("electron");
+const { app, BrowserWindow, screen, ipcMain, Tray, Menu, Notification, shell } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const { createTrayImage } = require("./icon.cjs");
@@ -35,6 +38,20 @@ let quitting = false;
 
 // Shared tray state (volume is kept in sync with the renderer via IPC).
 let trayState = { paused: false, volume: 1, muted: false };
+
+// electron-updater handle — only initialized in packaged builds (see
+// initAutoUpdater). updateReadyVersion is set once an update is downloaded.
+let autoUpdater = null;
+let updateReadyVersion = null;
+
+// Latest known update status, pushed to the renderer so the banner can show
+// an in-strip indicator (and the renderer can pull it on mount via IPC).
+let updateStatus = { state: "idle", version: null };
+
+function sendUpdateStatus() {
+  if (!win || win.isDestroyed() || win.webContents.isDestroyed()) return;
+  win.webContents.send("update-status", updateStatus);
+}
 
 const clamp01 = (v) => Math.min(1, Math.max(0, Number(v) || 0));
 
@@ -154,7 +171,10 @@ function createWindow() {
     fullscreenable: false,
     maximizable: false,
     minimizable: false,
-    backgroundColor: "#00ff00", // fallback paint; alpha is applied by CSS
+    // Fully transparent fallback paint: transparency is real (the renderer
+    // paints nothing where the sky is, so the wallpaper shows through). The
+    // blue-sky look stays in the browser — see index.css html.desktop rules.
+    backgroundColor: "#00000000",
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
@@ -270,11 +290,25 @@ function buildTrayMenu() {
         { label: "Top of screen", click: dockTop },
         { type: "separator" },
         {
-          label: "Drag the green sky anywhere on the desktop",
+          label: "Drag the transparent banner anywhere on the desktop",
           enabled: false,
         },
       ],
     },
+    { type: "separator" },
+    ...(autoUpdater
+      ? [
+          { label: "\uD83D\uDD04 Check for updates", click: checkForUpdates },
+          ...(updateReadyVersion
+            ? [
+                {
+                  label: `\u2B07 v${updateReadyVersion} ready \u2014 Restart & install`,
+                  click: () => autoUpdater.quitAndInstall(),
+                },
+              ]
+            : []),
+        ]
+      : []),
     { type: "separator" },
     { label: "Show / Hide banner", click: toggleWindow },
     { type: "separator" },
@@ -304,14 +338,109 @@ ipcMain.on("volume-changed", (_e, v) => {
   buildTrayMenu();
 });
 
+// Renderer pulls the current update status on mount (covers app reloads).
+ipcMain.handle("update-status", () => updateStatus);
+
+// Renderer asks to restart & install a downloaded update (in-banner chip).
+ipcMain.on("update-install", () => {
+  if (autoUpdater && updateReadyVersion) autoUpdater.quitAndInstall();
+});
+
+// Renderer asks to open the GitHub releases page (portable manual-download
+// chip, and the NEWS panel's "view all" links on desktop).
+ipcMain.on("open-releases", () => {
+  shell.openExternal(
+    "https://github.com/jeanpaulchirac5-rgb/pokebanner/releases/latest",
+  );
+});
+
+// --- Auto-update (electron-updater) --------------------------------------
+
+function checkForUpdates() {
+  if (!autoUpdater) return;
+  autoUpdater.checkForUpdates().catch(() => {
+    /* network/feed failures are silent — the strip never breaks */
+  });
+}
+
+function initAutoUpdater() {
+  // electron-updater only works in a packaged, installed app — never in dev.
+  if (!app.isPackaged) return;
+  // Portable (single-file) builds can't self-update: electron-builder marks
+  // them with PORTABLE_EXECUTABLE_FILE. Flag it so the in-banner chip shows
+  // the manual-download hint instead of an auto-update status.
+  if (process.env.PORTABLE_EXECUTABLE_FILE) {
+    updateStatus = { state: "portable", version: null };
+    sendUpdateStatus();
+    return;
+  }
+  autoUpdater = require("electron-updater").autoUpdater;
+  autoUpdater.autoDownload = true; // download in background; install on our terms
+  autoUpdater.autoInstallOnAppQuit = true;
+
+  autoUpdater.on("update-available", (info) => {
+    console.log(`[poke-banner] update v${info.version} available — downloading…`);
+    updateStatus = { state: "downloading", version: info.version };
+    sendUpdateStatus();
+    if (Notification.isSupported()) {
+      new Notification({
+        title: "Poke-Banner update available",
+        body: `v${info.version} is downloading in the background — the strip keeps running.`,
+      }).show();
+    }
+  });
+
+  autoUpdater.on("update-not-available", () => {
+    updateStatus = { state: "idle", version: null };
+    sendUpdateStatus();
+  });
+
+  autoUpdater.on("download-progress", (p) => {
+    if (p && p.percent != null && Math.floor(p.percent) % 25 === 0) {
+      console.log(`[poke-banner] update download ${Math.floor(p.percent)}%`);
+    }
+  });
+
+  autoUpdater.on("update-downloaded", (info) => {
+    updateReadyVersion = info.version;
+    updateStatus = { state: "ready", version: info.version };
+    sendUpdateStatus();
+    console.log(`[poke-banner] update v${info.version} downloaded — restart to install.`);
+    if (Notification.isSupported()) {
+      new Notification({
+        title: "Poke-Banner updated",
+        body: `v${info.version} is ready. Use the tray menu to restart & install.`,
+      }).show();
+    }
+    buildTrayMenu();
+  });
+
+  autoUpdater.on("error", (err) => {
+    console.error(
+      "[poke-banner] update check failed:",
+      err && err.message ? err.message : err,
+    );
+    updateStatus = { state: "idle", version: null };
+    sendUpdateStatus();
+  });
+
+  // Check shortly after launch so the window is already up.
+  setTimeout(() => checkForUpdates(), 4000);
+}
+
 // --- App lifecycle ------------------------------------------------------
 
 app.on("before-quit", () => {
   quitting = true;
 });
 
+// Stable AppUserModelID so Windows notifications (updates, etc.) attribute
+// correctly to the installed app.
+app.setAppUserModelId("com.pokebanner.desktop");
+
 app.whenReady().then(() => {
   createWindow();
+  initAutoUpdater();
   tray = new Tray(createTrayImage());
   tray.setToolTip("Poke-Banner \u2014 60px taskbar RPG");
   tray.on("click", toggleWindow); // left-click toggles the strip

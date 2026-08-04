@@ -379,10 +379,15 @@ export const GROUND_ITEM_WEIGHTS: [string, number][] = [
 // packaged desktop installer filename (kept in sync with desktop/package.json).
 // ---------------------------------------------------------------------------
 
-export const GAME_VERSION = "1.0.0";
+export const GAME_VERSION = "1.1.0";
 
 export const TUNING = {
   bannerHeight: 60,
+  /** The banner's day sky — a bright retro pixel blue (#6ec4f8). The old
+   *  neon-green chroma key is long gone: the browser paints this blue sky,
+   *  and the desktop shell window is truly transparent (see desktop/).
+   *  `neonGreen` remains only as a legacy constant pinned by tests. */
+  skyBlue: "#6ec4f8",
   neonGreen: "#00ff00",
   battleIntervalMs: 2000,
   // Wild encounters roll a completely random delay inside this window each
@@ -422,6 +427,8 @@ export const TUNING = {
 
 export const UI = {
   bannerHeight: 60,
+  skyBlue: "#6ec4f8",
+  /** Legacy chroma-key color — kept only for PIXEL_UI parity tests. */
   neonGreen: "#00ff00",
   fontPixel: '"Press Start 2P", ui-monospace, monospace',
   spriteBase: "https://play.pokemonshowdown.com/sprites/ani",

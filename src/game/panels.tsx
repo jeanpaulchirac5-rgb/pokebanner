@@ -39,7 +39,7 @@ import type {
   Pokemon,
   SaveData,
 } from "./types";
-import { ArenaTab, CodexTab, SaveTab, ShopTab } from "./panels-tabs";
+import { ArenaTab, CodexTab, NewsTab, SaveTab, ShopTab } from "./panels-tabs";
 
 export type PanelTab =
   | "items"
@@ -53,6 +53,7 @@ export type PanelTab =
   | "social"
   | "admin"
   | "code"
+  | "news"
   | "save";
 
 export interface GamePanelsProps {
@@ -93,6 +94,7 @@ const TABS: { id: PanelTab; label: string }[] = [
   { id: "shop", label: "SHOP" },
   { id: "arena", label: "ARENA" },
   { id: "code", label: "CODEX" },
+  { id: "news", label: "NEWS" },
   { id: "save", label: "SAVE" },
 ];
 
@@ -128,9 +130,9 @@ export function GamePanels(props: GamePanelsProps) {
       {tab === "social" && <SocialTab {...props} />}
       {tab === "admin" && <AdminTab {...props} />}
       {tab === "shop" && <ShopTab {...props} />}
-      {tab === "arena" && <ArenaTab {...props} />}
-      {tab === "code" && <CodexTab {...props} />}
-      {tab === "save" && <SaveTab {...props} />}
+      {tab === "arena" && <ArenaTab {...props} />}      { tab === "code" && <CodexTab {...props} /> }
+      { tab === "news" && <NewsTab {...props} /> }
+      { tab === "save" && <SaveTab {...props} /> }
     </div>
   );
 }

@@ -77,8 +77,11 @@ async function reportErrorToVly(errorData: {
   }
 
   try {
+    // Explicit Content-Type so the monitoring API accepts the JSON body — a
+    // POST without it is a classic cause of 400 Bad Request responses.
     await fetch(monitoringUrl, {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...errorData,
         url: window.location.href,
@@ -86,6 +89,7 @@ async function reportErrorToVly(errorData: {
       }),
     });
   } catch (error) {
+    // Telemetry must never break the app — network failures are silent.
     console.error("Failed to report error to Vly:", error);
   }
 }

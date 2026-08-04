@@ -1,8 +1,8 @@
 {
   "name": "poke-banner-desktop",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
-  "description": "Electron shell that docks the 60px Poke-Banner above the Windows taskbar (neon-green sky keyed out to transparent)",
+  "description": "Electron shell that docks the 60px Poke-Banner above the Windows taskbar; transparent strip floats the scene over the wallpaper, with automatic updates via GitHub Releases.",
   "main": "main.cjs",
   "author": "Poke-Banner",
   "license": "MIT",
@@ -15,6 +15,9 @@
     "dist": "npm run build:web && electron-builder --win",
     "dist:dir": "npm run build:web && electron-builder --dir",
     "pack": "electron-builder --dir"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
   },
   "devDependencies": {
     "cross-env": "^7.0.3",
@@ -29,18 +32,35 @@
       "output": "release",
       "buildResources": "build"
     },
-    "files": ["main.cjs", "preload.cjs", "icon.cjs", "package.json"],
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "icon.cjs",
+      "package.json"
+    ],
     "extraResources": [
       {
         "from": "../dist",
         "to": "dist",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "win": {
       "target": [
-        { "target": "nsis", "arch": ["x64"] },
-        { "target": "portable", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "icon": "build/icon.png"
     },
@@ -52,6 +72,13 @@
     },
     "portable": {
       "artifactName": "Poke-Banner-Portable-${version}.exe"
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "jeanpaulchirac5-rgb",
+        "repo": "pokebanner"
+      }
+    ]
   }
 }

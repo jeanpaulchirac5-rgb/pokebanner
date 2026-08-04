@@ -27,6 +27,22 @@ declare global {
       ) => void;
       /** Renderer → shell: keep the tray's volume/mute state truthful. */
       reportVolume: (v: { volume: number; muted: boolean }) => void;
+      /** Auto-update status push ({ state, version }). */
+      onUpdateStatus: (
+        cb: (s: { state: "idle" | "downloading" | "ready" | "portable"; version: string | null }) => void,
+      ) => void;
+      offUpdateStatus: (
+        cb: (s: { state: "idle" | "downloading" | "ready" | "portable"; version: string | null }) => void,
+      ) => void;
+      /** Renderer pulls the current status on mount (covers app reloads). */
+      getUpdateStatus: () => Promise<{
+        state: "idle" | "downloading" | "ready" | "portable";
+        version: string | null;
+      }>;
+      /** Renderer asks to restart & install a downloaded update (in-banner chip). */
+      restartAndInstall: () => void;
+      /** Renderer asks to open the GitHub releases page (portable chip, NEWS links). */
+      openReleases: () => void;
     };
   }
 }

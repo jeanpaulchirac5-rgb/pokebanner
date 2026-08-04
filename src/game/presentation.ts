@@ -3,7 +3,7 @@
 // and the shared pixel UI constants. Pure enough to unit-test in Node.
 // ---------------------------------------------------------------------------
 
-import { MOVES, UI } from "./constants";
+import { MOVES, SPECIES, UI } from "./constants";
 import type { BiomeDef, MoveDef } from "./types";
 
 /** Lowercases and normalizes a name into the Showdown sprite id format.
@@ -37,6 +37,82 @@ export function urlSpriteOpponent(speciesId: string): string {
  *  the regular set. Falls back to the normal sprite on error in the UI. */
 export function urlSpriteShiny(speciesId: string): string {
   return `${UI.spriteBase}-shiny/${toEnglishId(speciesId)}.gif`;
+}
+
+/**
+ * Per-species idle animation class, used while the leader stands still (the
+ * turn-around pause at each edge, and the tray pause). Iconic species get
+ * curated moves (Pikachu hops, Bulbasaur nods, Gengar floats…); everything
+ * else falls back to an archetype from its types, then to the default sway.
+ * The classes (idle-hop / idle-nod / idle-wobble / idle-float / idle-rock /
+ * idle-flutter / idle-sway) live in index.css and all honor --flip.
+ */
+const IDLE_ANIM_CURATED: Record<string, string> = {
+  // starters + their evolutions
+  bulbasaur: "idle-nod", ivysaur: "idle-nod", venusaur: "idle-nod",
+  charmander: "idle-hop", charmeleon: "idle-hop", charizard: "idle-flutter",
+  squirtle: "idle-wobble", wartortle: "idle-wobble", blastoise: "idle-rock",
+  // small bouncy mammals & rodents
+  pikachu: "idle-hop", raichu: "idle-hop", eevee: "idle-hop",
+  jolteon: "idle-hop", vaporeon: "idle-wobble", flareon: "idle-rock",
+  rattata: "idle-hop", raticate: "idle-hop", sandshrew: "idle-hop",
+  sandslash: "idle-hop", diglett: "idle-nod", dugtrio: "idle-nod",
+  meowth: "idle-hop", persian: "idle-hop", growlithe: "idle-hop",
+  arcanine: "idle-rock", ponyta: "idle-hop", rapidash: "idle-hop",
+  mankey: "idle-hop", primeape: "idle-hop", doduo: "idle-hop",
+  dodrio: "idle-hop", jigglypuff: "idle-hop", wigglytuff: "idle-hop",
+  clefairy: "idle-hop", clefable: "idle-hop", voltorb: "idle-hop",
+  electrode: "idle-hop", cubone: "idle-hop", marowak: "idle-rock",
+  hitmonlee: "idle-hop", hitmonchan: "idle-hop", tauros: "idle-rock",
+  // wobbly water dwellers
+  poliwag: "idle-wobble", poliwhirl: "idle-wobble", poliwrath: "idle-rock",
+  tentacool: "idle-wobble", tentacruel: "idle-wobble", shellder: "idle-wobble",
+  cloyster: "idle-rock", horsea: "idle-wobble", seadra: "idle-wobble",
+  goldeen: "idle-wobble", seaking: "idle-wobble", staryu: "idle-wobble",
+  starmie: "idle-float", lapras: "idle-wobble", psyduck: "idle-wobble",
+  golduck: "idle-wobble", slowpoke: "idle-wobble", slowbro: "idle-wobble",
+  krabby: "idle-wobble", kingler: "idle-wobble", seel: "idle-wobble",
+  dewgong: "idle-wobble", magikarp: "idle-wobble", gyarados: "idle-float",
+  omanyte: "idle-wobble", omastar: "idle-rock", kabuto: "idle-wobble",
+  kabutops: "idle-wobble",
+  // leafy nodders & creeping bugs
+  oddish: "idle-nod", gloom: "idle-nod", vileplume: "idle-nod",
+  bellsprout: "idle-nod", weepinbell: "idle-nod", victreebel: "idle-nod",
+  exeggcute: "idle-nod", exeggutor: "idle-nod", tangela: "idle-nod",
+  caterpie: "idle-nod", metapod: "idle-nod", weedle: "idle-nod",
+  kakuna: "idle-nod", paras: "idle-nod", parasect: "idle-nod",
+  // levitators & spooks
+  gastly: "idle-float", haunter: "idle-float", gengar: "idle-float",
+  abra: "idle-float", kadabra: "idle-float", alakazam: "idle-float",
+  magnemite: "idle-float", magneton: "idle-float", mewtwo: "idle-float",
+  mew: "idle-float", celebi: "idle-float",
+  // fluttering wings
+  pidgey: "idle-flutter", pidgeotto: "idle-flutter", pidgeot: "idle-flutter",
+  spearow: "idle-flutter", fearow: "idle-flutter", zubat: "idle-flutter",
+  golbat: "idle-flutter", butterfree: "idle-flutter", beedrill: "idle-flutter",
+  venomoth: "idle-flutter", scyther: "idle-flutter", farfetchd: "idle-flutter",
+  aerodactyl: "idle-flutter",
+  // heavyweights
+  geodude: "idle-rock", graveler: "idle-rock", golem: "idle-rock",
+  onix: "idle-rock", rhyhorn: "idle-rock", rhydon: "idle-rock",
+  snorlax: "idle-rock", chansey: "idle-rock", kangaskhan: "idle-rock",
+  machop: "idle-rock", machoke: "idle-rock", machamp: "idle-rock",
+  nidoqueen: "idle-rock", nidoking: "idle-rock", pinsir: "idle-rock",
+};
+
+/** Per-species idle animation class (see IDLE_ANIM_CURATED + type fallback). */
+export function idleAnimClass(speciesId: string): string {
+  const id = toEnglishId(speciesId);
+  const curated = IDLE_ANIM_CURATED[id];
+  if (curated) return curated;
+  const types = SPECIES[id]?.types ?? [];
+  if (types.some((t) => t === "ghost" || t === "psychic")) return "idle-float";
+  if (types.some((t) => t === "flying" || t === "bug")) return "idle-flutter";
+  if (types.some((t) => t === "rock" || t === "ground")) return "idle-rock";
+  if (types.some((t) => t === "water")) return "idle-wobble";
+  if (types.some((t) => t === "grass")) return "idle-nod";
+  if (types.some((t) => t === "electric" || t === "fire")) return "idle-hop";
+  return "idle-sway";
 }
 
 /**
@@ -276,17 +352,88 @@ const SKY_PALETTE: Record<
   night: { cloud: "#6b7280", shade: "#4b5563", bird: null },
 };
 
-/** Sky tile: drifting pixel clouds + birds over the neon-green sky.
- *  Deterministic per (seed, phase) so tests can pin the layout; the banner
- *  passes a stable per-save seed (startedAt) so the tile doesn't churn while
- *  walking. At night the clouds gray out and the birds vanish; at sunset they
- *  take on a warm tint. 128px wide × 28px tall, repeat-x, slowest parallax. */
+/** Phase-aware sky gradient bands, top → horizon. The bottom band equals
+ *  skyColorFor(phase) so the banner's flat backdrop blends with the tile. */
+const SKY_BANDS: Record<SkyPhase, readonly string[]> = {
+  day: ["#3f7fce", "#4f97de", "#5fb0ee", "#6ec4f8"],
+  sunset: ["#c0804a", "#cc8f52", "#d89f5c", "#e3af66"],
+  night: ["#1b2347", "#222c54", "#293561", "#303e6e"],
+};
+
+/** The flat sky color the banner paints behind the scenery for a phase, so
+ *  the gradient tile and the backdrop never show a seam (day = bright pixel
+ *  blue; sunset = warm amber; night = deep indigo). */
+export function skyColorFor(phase: SkyPhase): string {
+  const stack = SKY_BANDS[phase] ?? SKY_BANDS.day;
+  return stack[stack.length - 1];
+}
+
+/** Sky tile: a blue pixel gradient (dark top → lighter horizon) with drifting
+ *  pixel clouds + birds. The sky is real now — no more neon-green key color —
+ *  and the bands shift with the phase: warm amber at sunset, deep indigo at
+ *  night. Deterministic per (seed, phase) so tests can pin the layout; the
+ *  banner passes a stable per-save seed (startedAt) so the tile doesn't churn
+ *  while walking. At night the clouds gray out and the birds vanish; at sunset
+ *  they take on a warm tint. 128px wide × 28px tall, repeat-x, slowest
+ *  parallax. */
 export function skySvg(seed = 0, phase: SkyPhase = "day"): string {
   const W = 128;
   const H = 28;
   const pal = SKY_PALETTE[phase] ?? SKY_PALETTE.day;
   const parts: string[] = [];
+  // Sky backdrop: hard pixel bands so the banner has a real sky gradient
+  // (not a flat key color). Band fills avoid the cloud/under-shade palette so
+  // tests that inspect cloud geometry stay unambiguous.
+  const stack = SKY_BANDS[phase] ?? SKY_BANDS.day;
+  const bandH = Math.floor(H / stack.length);
+  stack.forEach((fill, i) => {
+    parts.push(`<rect width="${W}" height="${bandH}" y="${i * bandH}" fill="${fill}"/>`);
+  });
   // LCG so a given seed always paints the same clouds/birds
+  let s = (seed >>> 0) || 1;
+  const rnd = () => {
+    s = (s * 1664525 + 1013904223) >>> 0;
+    return s / 0xffffffff;
+  };
+  // three pixel clouds: puffs with a soft under-shade
+  for (let i = 0; i < 3; i++) {
+    const x = Math.floor(rnd() * (W - 26));
+    const y = 2 + Math.floor(rnd() * 12);
+    parts.push(
+      `<rect x="${x + 3}" y="${y}" width="12" height="3" fill="${pal.cloud}"/>`,
+      `<rect x="${x}" y="${y + 2}" width="18" height="3" fill="${pal.cloud}"/>`,
+      `<rect x="${x}" y="${y + 5}" width="18" height="1" fill="${pal.shade}"/>`,
+    );
+  }
+  // two pixel birds: dark "~" chevrons (birds fly home after sunset)
+  if (pal.bird) {
+    for (let i = 0; i < 2; i++) {
+      const x = Math.floor(rnd() * (W - 18));
+      const y = 3 + Math.floor(rnd() * 10);
+      parts.push(
+        `<rect x="${x}" y="${y}" width="5" height="1" fill="${pal.bird}"/>`,
+        `<rect x="${x + 7}" y="${y}" width="5" height="1" fill="${pal.bird}"/>`,
+        `<rect x="${x + 5}" y="${y + 1}" width="1" height="1" fill="${pal.bird}"/>`,
+        `<rect x="${x + 11}" y="${y + 1}" width="1" height="1" fill="${pal.bird}"/>`,
+      );
+    }
+  }
+  return svgUri(W, H, parts.join(""));
+}
+
+/**
+ * Clouds-and-birds ONLY sky tile (transparent background). Used by the
+ * Electron desktop shell: the strip there is a transparent window, so the
+ * drifting pixel clouds float directly over the desktop wallpaper while the
+ * browser keeps the full blue sky (skySvg). Same LCG + palette as skySvg so
+ * a given seed paints the identical clouds in both modes.
+ */
+export function cloudsSvg(seed = 0, phase: SkyPhase = "day"): string {
+  const W = 128;
+  const H = 28;
+  const pal = SKY_PALETTE[phase] ?? SKY_PALETTE.day;
+  const parts: string[] = [];
+  // LCG so a given seed always paints the same clouds/birds (mirrors skySvg)
   let s = (seed >>> 0) || 1;
   const rnd = () => {
     s = (s * 1664525 + 1013904223) >>> 0;
@@ -374,11 +521,89 @@ export function celestialForPhase(phase: SkyPhase): CelestialSprite[] {
 }
 
 // ---------------------------------------------------------------------------
+// Biome ambient particles — tiny always-animating pixel motes (pollen,
+// falling leaves, rising crystal sparkles) that drift through the sky so the
+// banner feels alive even when the Pokémon is idle. Deterministic per
+// (biome, seed, phase) so the layout never churns between frames.
+// ---------------------------------------------------------------------------
+
+export interface AmbientParticle {
+  /** Horizontal anchor in the banner (0–100%). */
+  leftPct: number;
+  /** Vertical anchor from the top of the banner, px. */
+  topPx: number;
+  /** Square pixel size of the mote. */
+  sizePx: number;
+  /** Solid pixel color. */
+  color: string;
+  /** Stagger so motes never all start at once. */
+  delaySec: number;
+  /** One full drift cycle length. */
+  durSec: number;
+  /** Horizontal sway amplitude (px), consumed via the --sway CSS var. */
+  swayPx: number;
+  /** Motion archetype → CSS animation class (ambient-fall/rise/drift). */
+  kind: "fall" | "rise" | "drift";
+}
+
+const AMBIENT_MOTES: Record<
+  string,
+  {
+    day: { colors: string[]; kind: AmbientParticle["kind"] };
+    night: { colors: string[]; kind: AmbientParticle["kind"] };
+  }
+> = {
+  plains: {
+    day: { colors: ["#ffd54f", "#fff59d", "#ffffff"], kind: "fall" }, // drifting pollen
+    night: { colors: ["#9fb4ff", "#cdd9ff"], kind: "drift" }, // fireflies
+  },
+  forest: {
+    day: { colors: ["#7cb342", "#aed581", "#fff59d"], kind: "fall" }, // leaves + spores
+    night: { colors: ["#8fae8f", "#b7c9b7"], kind: "fall" },
+  },
+  cave: {
+    day: { colors: ["#4fc3f7", "#e1f5fe", "#81d4fa"], kind: "rise" }, // crystal sparkles
+    night: { colors: ["#5fa8d3", "#9fd4f0"], kind: "rise" },
+  },
+};
+
+/** Deterministic ambient motes for a biome/phase. Seeded so the layout never
+ *  churns between frames; the banner passes the save's startedAt. */
+export function ambientParticles(
+  biomeId: string,
+  seed = 0,
+  phase: SkyPhase = "day",
+): AmbientParticle[] {
+  const spec = AMBIENT_MOTES[biomeId] ?? AMBIENT_MOTES.plains;
+  const pal = phase === "night" ? spec.night : spec.day;
+  let s = (seed >>> 0) || 1;
+  const rnd = () => {
+    s = (s * 1664525 + 1013904223) >>> 0;
+    return s / 0xffffffff;
+  };
+  const out: AmbientParticle[] = [];
+  for (let i = 0; i < 10; i++) {
+    out.push({
+      leftPct: 3 + rnd() * 94,
+      topPx: 2 + rnd() * 24,
+      sizePx: rnd() < 0.35 ? 3 : 2,
+      color: pal.colors[i % pal.colors.length],
+      delaySec: +(rnd() * 8).toFixed(2),
+      durSec: +(4 + rnd() * 6).toFixed(2),
+      swayPx: 3 + Math.floor(rnd() * 4),
+      kind: pal.kind,
+    });
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
 // Shared pixel UI constants (consumed by the banner and panels)
 // ---------------------------------------------------------------------------
 
 export const PIXEL_UI = {
   bannerHeight: UI.bannerHeight,
+  skyBlue: UI.skyBlue,
   neonGreen: UI.neonGreen,
   bgWhite: UI.bgWhite,
   ink: UI.ink,

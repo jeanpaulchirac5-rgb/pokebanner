@@ -5,10 +5,17 @@
 // ---------------------------------------------------------------------------
 
 import { createSave, migrateV1, normalizeSave, normalizePokemon } from "./engine";
-import type { SaveData, SaveV1 } from "./types";
+import { isLanguage } from "./i18n";
+import type { Language, SaveData, SaveV1 } from "./types";
 
 export const V1_KEY = "poke-banner-save";
 export const V2_KEY = "poke-banner-save-v2";
+
+/**
+ * Preferred-language key: set from the landing page's language picker and
+ * read by the game so a player's choice carries into a fresh adventure.
+ */
+export const LANG_KEY = "poke-banner-lang";
 
 export interface StorageLike {
   getItem(key: string): string | null;
@@ -63,6 +70,32 @@ export function persistSave(save: SaveData, storage: StorageLike): void {
 export function clearSave(storage: StorageLike): void {
   storage.removeItem(V2_KEY);
   storage.removeItem(V1_KEY);
+}
+
+/** Validated preferred language; any junk value falls back to English. */
+export function getPreferredLanguage(storage: StorageLike): Language {
+  const raw = storage.getItem(LANG_KEY);
+  return isLanguage(raw) ? raw : "en";
+}
+
+/**
+ * Set the preferred language: writes LANG_KEY and, when a v2 save already
+ * exists, patches its `language` so an existing game switches on next load.
+ * Never creates a save out of thin air (a first-time player still gets the
+ * starter-selection screen in their chosen language).
+ */
+export function setPreferredLanguage(storage: StorageLike, lang: Language): void {
+  storage.setItem(LANG_KEY, lang);
+  const v2 = storage.getItem(V2_KEY);
+  if (!v2) return;
+  try {
+    const parsed = JSON.parse(v2) as unknown;
+    if (isValidSave(parsed)) {
+      persistSave({ ...parsed, language: lang }, storage);
+    }
+  } catch {
+    /* corrupt save — leave it for loadSave's normal handling */
+  }
 }
 
 /**

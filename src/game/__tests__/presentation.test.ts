@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { BIOMES } from "../constants";
+import { BIOMES, KANTO_151, MOVES } from "../constants";
 import {
   PIXEL_UI,
+  ambientParticles,
   backdropSvg,
   celestialForPhase,
+  cloudsSvg,
   groundSvg,
+  idleAnimClass,
   moonSvg,
   moveFxById,
   moveFxByMove,
@@ -13,6 +16,7 @@ import {
   placeholderSprite,
   preloadSprites,
   scenerySvg,
+  skyColorFor,
   skySvg,
   spriteId,
   sunSvg,
@@ -22,7 +26,6 @@ import {
   urlSpriteShiny,
   urlSpriteWalking,
 } from "../presentation";
-import { MOVES } from "../constants";
 
 describe("sprite URLs", () => {
   it("urlSpriteWalking uses the lowercase Showdown ani URL", () => {
@@ -166,6 +169,47 @@ describe("pixel scenery generators", () => {
   });
 });
 
+describe("idle animation classes", () => {
+  it("gives iconic species curated moves", () => {
+    expect(idleAnimClass("pikachu")).toBe("idle-hop");
+    expect(idleAnimClass("bulbasaur")).toBe("idle-nod");
+    expect(idleAnimClass("squirtle")).toBe("idle-wobble");
+    expect(idleAnimClass("gengar")).toBe("idle-float");
+    expect(idleAnimClass("pidgey")).toBe("idle-flutter");
+    expect(idleAnimClass("onix")).toBe("idle-rock");
+    expect(idleAnimClass("charmander")).toBe("idle-hop");
+  });
+
+  it("falls back by type for species without a curated entry", () => {
+    expect(idleAnimClass("koffing")).toBe("idle-sway"); // poison
+    expect(idleAnimClass("dratini")).toBe("idle-sway"); // dragon
+    expect(idleAnimClass("ekans")).toBe("idle-sway"); // poison
+    expect(idleAnimClass("ditto")).toBe("idle-sway"); // normal
+  });
+
+  it("normalizes ids (mixed case, spaces)", () => {
+    expect(idleAnimClass("Pikachu")).toBe("idle-hop");
+    // Species without a SPECIES entry (or unknown ids) fall back to sway.
+    expect(idleAnimClass("Mr. Mime")).toBe("idle-sway");
+    expect(idleAnimClass("missingmon")).toBe("idle-sway");
+  });
+
+  it("covers every Kanto species with a valid animation class", () => {
+    const valid = new Set([
+      "idle-sway",
+      "idle-hop",
+      "idle-nod",
+      "idle-wobble",
+      "idle-float",
+      "idle-rock",
+      "idle-flutter",
+    ]);
+    for (const id of KANTO_151) {
+      expect(valid.has(idleAnimClass(id))).toBe(true);
+    }
+  });
+});
+
 describe("sky generator", () => {
   it("returns a valid 128×28 SVG data URI with clouds and birds", () => {
     const uri = skySvg(12345);
@@ -188,6 +232,33 @@ describe("sky generator", () => {
     const svg = decodeURIComponent(skySvg(0));
     expect(svg).toContain('#ffffff');
     expect(svg).toContain('#1c1c1c');
+  });
+
+  it("cloudsSvg is the clouds-only transparent tile (no sky bands)", () => {
+    const uri = cloudsSvg(12345);
+    expect(uri.startsWith("data:image/svg+xml")).toBe(true);
+    const svg = decodeURIComponent(uri);
+    expect(svg).toContain('width="128"');
+    expect(svg).toContain('height="28"');
+    // clouds + birds present…
+    expect(svg).toContain('#ffffff');
+    expect(svg).toContain('#1c1c1c');
+    // …but no full-width gradient band rects → transparent background.
+    expect(svg).not.toMatch(/<rect width="128"/);
+  });
+
+  it("cloudsSvg mirrors skySvg's deterministic clouds for the same seed", () => {
+    expect(cloudsSvg(42)).toBe(cloudsSvg(42));
+    expect(cloudsSvg(42)).not.toBe(cloudsSvg(43));
+    // Both tiles draw the exact same cloud/bird pixels — only the bands
+    // differ (skySvg adds full-width gradient rects on top).
+    const sky = decodeURIComponent(skySvg(42));
+    const clouds = decodeURIComponent(cloudsSvg(42));
+    const cloudRects = [...clouds.matchAll(/<rect[^>]*y="([2-9]|1[0-9])"[^>]*\/>/g)].map((m) => m[0]);
+    expect(cloudRects.length).toBeGreaterThan(0);
+    for (const rect of cloudRects) {
+      expect(sky).toContain(rect);
+    }
   });
 
   it("defaults to day: white clouds and visible dark birds", () => {
@@ -227,6 +298,54 @@ describe("sky generator", () => {
     expect(cloudLayout(skySvg(99, 'day'))).toBe(cloudLayout(skySvg(99, 'sunset')));
     // and the layout is deterministic within a phase
     expect(cloudLayout(skySvg(99, 'night'))).toBe(cloudLayout(skySvg(99, 'night')));
+  });
+});
+
+describe("sky color helper", () => {
+  it("returns the bottom sky band for each phase", () => {
+    expect(skyColorFor("day")).toBe("#6ec4f8");
+    expect(skyColorFor("sunset")).toBe("#e3af66");
+    expect(skyColorFor("night")).toBe("#303e6e");
+  });
+
+  it("matches the sky tile's bottom band so the banner has no seam", () => {
+    // the last gradient band in the tile equals the flat backdrop color
+    expect(decodeURIComponent(skySvg(5, "day"))).toContain(`fill="${skyColorFor("day")}"`);
+    expect(decodeURIComponent(skySvg(5, "night"))).toContain(`fill="${skyColorFor("night")}"`);
+  });
+});
+
+describe("ambient particles", () => {
+  it("is deterministic per (biome, seed, phase)", () => {
+    expect(ambientParticles("plains", 123)).toEqual(ambientParticles("plains", 123));
+    expect(ambientParticles("plains", 123)).not.toEqual(ambientParticles("plains", 124));
+  });
+
+  it("always returns a full sky of motes with sane ranges", () => {
+    for (const id of ["plains", "forest", "cave"]) {
+      const parts = ambientParticles(id, 42, "day");
+      expect(parts.length).toBe(10);
+      for (const p of parts) {
+        expect(p.leftPct).toBeGreaterThanOrEqual(0);
+        expect(p.leftPct).toBeLessThanOrEqual(100);
+        expect(p.topPx).toBeGreaterThanOrEqual(0);
+        expect(p.sizePx).toBeGreaterThan(0);
+        expect(p.durSec).toBeGreaterThan(0);
+        expect(["fall", "rise", "drift"]).toContain(p.kind);
+      }
+    }
+  });
+
+  it("uses biome-specific motion: plains pollen falls, cave sparkles rise", () => {
+    expect(ambientParticles("plains", 7, "day")[0].kind).toBe("fall");
+    expect(ambientParticles("forest", 7, "day")[0].kind).toBe("fall");
+    expect(ambientParticles("cave", 7, "day")[0].kind).toBe("rise");
+  });
+
+  it("shifts palette at night", () => {
+    const day = ambientParticles("plains", 7, "day");
+    const night = ambientParticles("plains", 7, "night");
+    expect(day[0].color).not.toBe(night[0].color);
   });
 });
 
