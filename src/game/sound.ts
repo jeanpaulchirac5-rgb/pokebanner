@@ -41,6 +41,8 @@ export type SfxName =
   | "weather-snow"
   | "weather-starry"
   | "weather-clear"
+  | "weather-eclipse"
+  | "weather-aurora"
   | "milestone";
 
 export type BgmBiome = "plains" | "forest" | "cave";
@@ -301,6 +303,18 @@ export const SFX_PATTERNS: Record<SfxName, Tone[]> = {
     { note: "C5", start: 0, dur: 0.1, type: "triangle", vol: 0.32 },
     { note: "E5", start: 0.1, dur: 0.1, type: "triangle", vol: 0.32 },
     { note: "G5", start: 0.2, dur: 0.16, type: "triangle", vol: 0.32 },
+  ],
+  // v1.8.0 rare events — eclipse: a low bronze drone; aurora: glassy shimmer
+  "weather-eclipse": [
+    { note: "C4", start: 0, dur: 0.5, type: "sine", vol: 0.3 },
+    { note: "G#4", start: 0.08, dur: 0.12, type: "triangle", vol: 0.24 },
+    { note: "F4", start: 0.24, dur: 0.3, type: "triangle", vol: 0.22 },
+  ],
+  "weather-aurora": [
+    { note: "E5", start: 0, dur: 0.14, type: "sine", vol: 0.26 },
+    { note: "A5", start: 0.12, dur: 0.14, type: "sine", vol: 0.24 },
+    { note: "E6", start: 0.26, dur: 0.18, type: "sine", vol: 0.22 },
+    { note: "C6", start: 0.44, dur: 0.22, type: "triangle", vol: 0.2 },
   ],
   // Codex milestone fanfare — rising fifth arpeggio
   milestone: [

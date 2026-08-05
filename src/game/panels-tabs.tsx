@@ -5,8 +5,9 @@
 // ---------------------------------------------------------------------------
 
 import { useEffect, useState } from "react";
-import { CHAMPIONS, GAME_VERSION, ITEMS, TUNING, getSpecies } from "./constants";
-import { LANG_LABELS, LANGS, t } from "./i18n";
+import { BIOMES, CHAMPIONS, GAME_VERSION, ITEMS, TUNING, getSpecies } from "./constants";
+import { badgeDamageBonus } from "./engine";
+import { LANG_LABELS, LANGS, localizedName, t } from "./i18n";
 import { placeholderSprite, urlSpriteCombat } from "./presentation";
 import { compareVersions, fetchReleaseNotes } from "../lib/release";
 import type { ReleaseNote } from "../lib/release";
@@ -399,6 +400,7 @@ function saveStatsXp(save: SaveData): number {
 export function SettingsTab(props: GamePanelsProps) {
   const lang = props.save.language;
   const dustOn = props.save.dustTrail !== false;
+  const biomeId = props.save.biome ?? "auto";
   return (
     <div className="space-y-2 text-[7px]">
       <div className="border-2 border-ink bg-white p-1.5">
@@ -415,6 +417,171 @@ export function SettingsTab(props: GamePanelsProps) {
             {dustOn ? t(lang, "on") : t(lang, "off")}
           </button>
         </div>
+      </div>
+
+      {/* v1.8.0: biome picker — pin the banner scenery or let it rotate */}
+      <div className="border-2 border-ink bg-white p-1.5">
+        <div className="mb-1 font-bold uppercase">🌲 {t(lang, "biome-title")}</div>
+        <div className="flex flex-wrap gap-1">
+          <button
+            className={`nb-btn !px-1.5 ${biomeId === "auto" ? "bg-yellow-300" : "bg-gray-100"}`}
+            onClick={() => props.onSetBiome("auto")}
+          >
+            🔄 {t(lang, "biome-auto")}
+          </button>
+          {BIOMES.map((b) => (
+            <button
+              key={b.id}
+              className={`nb-btn !px-1.5 ${biomeId === b.id ? "bg-yellow-300" : "bg-gray-100"}`}
+              onClick={() => props.onSetBiome(b.id)}
+            >
+              {b.name}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Career — lifetime stats + the 8 Kanto badges (v1.8.0 Elite & Legends+)
+// ---------------------------------------------------------------------------
+
+export function CareerTab(props: GamePanelsProps) {
+  const lang = props.save.language;
+  const save = props.save;
+  const badgeMult = badgeDamageBonus(save.badges.length);
+  const stats: [string, string][] = [
+    [t(lang, "career-money"), "₽" + save.moneyEarned.toLocaleString()],
+    [t(lang, "career-wins"), save.battlesWon.toLocaleString()],
+    [t(lang, "career-losses"), save.battlesLost.toLocaleString()],
+    [t(lang, "career-captures"), save.captures.toLocaleString()],
+    [t(lang, "career-champions"), save.championWins.toLocaleString()],
+    [t(lang, "career-rockets"), save.rocketsDefeated.toLocaleString()],
+    [t(lang, "career-legendaries"), save.legendariesDefeated.toLocaleString()],
+    [t(lang, "career-shinies"), save.shiniesSeen.toLocaleString()],
+    [t(lang, "career-eggs"), save.eggsHatched.toLocaleString()],
+    [t(lang, "career-steps"), save.steps.toLocaleString()],
+  ];
+  return (
+    <div className="space-y-2 text-[7px]">
+      <div className="border-2 border-ink bg-amber-100 p-1.5">
+        <div className="font-bold uppercase">
+          🏅 {t(lang, "career-title")} — {save.badges.length}/8 {t(lang, "career-badges")}
+        </div>
+        <div className="mt-1 text-ink/70">{t(lang, "career-tag")}</div>
+      </div>
+
+      {/* The 8 Kanto badges */}
+      <div className="border-2 border-ink bg-white p-1.5">
+        <div className="mb-1 font-bold uppercase">{t(lang, "career-badges")}</div>
+        <div className="grid grid-cols-4 gap-1">
+          {CHAMPIONS.map((c) => {
+            const earned = save.badges.includes(c.badge);
+            return (
+              <div
+                key={c.id}
+                className={
+                  "flex flex-col items-center border-2 p-1 text-center " +
+                  (earned ? "border-ink bg-yellow-200" : "border-gray-300 bg-gray-50 opacity-60")
+                }
+                title={`${c.name} · ${c.badge} · +5% damage`}
+              >
+                <span
+                  className="mb-0.5 flex h-4 w-4 items-center justify-center rounded-full border-2 border-ink text-[8px]"
+                  style={{
+                    background: earned ? c.color : "#e5e5e5",
+                    filter: earned ? "none" : "grayscale(1)",
+                  }}
+                >
+                  {earned ? "★" : "?"}
+                </span>
+                <span className="font-bold uppercase leading-tight">{c.badge}</span>
+                <span className="text-ink/60">{c.name}</span>
+              </div>
+            );
+          })}
+        </div>
+        <div className="mt-1 text-ink/70">
+          {t(lang, "career-badge-bonus")}: +{Math.round((badgeMult - 1) * 100)}% {t(lang, "career-damage")}
+        </div>
+      </div>
+
+      {/* Lifetime stats grid */}
+      <div className="border-2 border-ink bg-white p-1.5">
+        <div className="mb-1 font-bold uppercase">{t(lang, "career-stats")}</div>
+        <div className="grid grid-cols-2 gap-1 sm:grid-cols-5">
+        {stats.map(([label, value]) => (
+          <div key={label} className="border-2 border-ink bg-gray-50 p-1 text-center">
+            <div className="font-bold uppercase leading-tight text-ink/70">{label}</div>
+            <div className="text-[9px] font-bold">{value}</div>
+          </div>
+        ))}
+        </div>
+      </div>
+
+      <div className="border-2 border-ink bg-white p-1.5">
+        <div className="font-bold uppercase">{t(lang, "career-next")}</div>
+        <div className="mt-1 text-ink/70">{t(lang, "career-next-desc")}</div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Eggs — the incubator: walk to hatch (v1.8.0 step-based hatching)
+// ---------------------------------------------------------------------------
+
+export function EggsTab(props: GamePanelsProps) {
+  const lang = props.save.language;
+  const save = props.save;
+  const eggs = save.eggs ?? [];
+  return (
+    <div className="space-y-2 text-[7px]">
+      <div className="border-2 border-ink bg-rose-100 p-1.5">
+        <div className="font-bold uppercase">
+          🥚 {t(lang, "eggs-title")} — {eggs.length} {t(lang, "eggs-count")}
+        </div>
+        <div className="mt-1 text-ink/70">{t(lang, "eggs-tag")}</div>
+      </div>
+
+      {eggs.length === 0 && (
+        <div className="border-2 border-ink bg-white p-2 text-ink/60">
+          {t(lang, "eggs-empty")}
+        </div>
+      )}
+
+      <div className="flex flex-col gap-1">
+        {eggs.map((e, i) => {
+          const pct = Math.max(0, Math.min(100, ((e.needed - e.steps) / Math.max(1, e.needed)) * 100));
+          return (
+            <div key={i} className="flex items-center gap-2 border-2 border-ink bg-white p-1.5">
+              <span className="egg-wiggle flex h-6 w-6 shrink-0 items-center justify-center border-2 border-ink bg-white text-[10px]" style={{ animationDelay: `${i * 0.25}s` }}>
+                🥚
+              </span>
+              <div className="flex-1">
+                <div className="flex items-center justify-between font-bold uppercase">
+                  <span>
+                    {localizedName(e.speciesId, lang)}
+                    {e.shiny ? " ⭐" : ""}
+                  </span>
+                  <span className="text-ink/60">
+                    {Math.max(0, e.steps)}/{e.needed} {t(lang, "eggs-steps")}
+                  </span>
+                </div>
+                <div className="mt-0.5 h-2 border-2 border-ink bg-white">
+                  <div className="h-full bg-rose-400" style={{ width: pct + "%" }} />
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="border-2 border-ink bg-white p-1.5">
+        <div className="font-bold uppercase">{t(lang, "eggs-hatched")}: {save.eggsHatched}</div>
+        <div className="mt-1 text-ink/70">{t(lang, "eggs-hint")}</div>
       </div>
     </div>
   );

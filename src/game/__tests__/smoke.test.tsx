@@ -32,6 +32,25 @@ vi.mock("@/convex/_generated/api", () => ({
   api: new Proxy({}, { get: () => new Proxy({}, { get: () => ({} as never) }) }),
 }));
 
+// jsdom normally provides localStorage, but guard anyway so these render
+// smoke tests stay hermetic in any environment (see the beforeEach below).
+if (typeof globalThis.localStorage === "undefined") {
+  const mem = new Map<string, string>();
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    value: {
+      get length() {
+        return mem.size;
+      },
+      clear: () => mem.clear(),
+      getItem: (k: string) => (mem.has(k) ? mem.get(k)! : null),
+      key: (i: number) => [...mem.keys()][i] ?? null,
+      removeItem: (k: string) => void mem.delete(k),
+      setItem: (k: string, v: string) => void mem.set(k, String(v)),
+    } satisfies Storage,
+  });
+}
+
 /** Mount a React node and return the root + container for assertions. */
 async function mount(node: ReactNode): Promise<{ root: Root; container: HTMLDivElement }> {
   const container = document.createElement("div");
@@ -96,6 +115,9 @@ const PANEL_PROPS = {
   onClearDetails: noop,
   onSetLanguage: noop,
   onSetDustTrail: noop,
+  onSetBiome: noop,
+  onSetMoves: noop,
+  detailsIdx: null,
 };
 
 describe("PokemonBanner render smoke", () => {
@@ -171,6 +193,8 @@ describe("GamePanels render smoke (every tab)", () => {
     "items",
     "team",
     "dex",
+    "career",
+    "eggs",
     "center",
     "market",
     "rank",

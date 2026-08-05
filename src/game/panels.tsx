@@ -14,6 +14,7 @@ import {
   DEX_MILESTONES,
   ITEMS,
   KANTO_151,
+  MOVES,
   MARKET_TUNING,
   TYPE_COLORS,
   TUNING,
@@ -24,6 +25,7 @@ import {
   badgeDamageBonus,
   dexMilestonesEarned,
   dexRarity,
+  learnsetFor,
   marketValueOf,
   pokedexMilestone,
   xpNeeded,
@@ -36,6 +38,7 @@ import {
 import {
   dexFlavor,
   localizedItemName,
+  localizedMoveName,
   localizedName,
   t,
 } from "./i18n";
@@ -47,7 +50,7 @@ import type {
   Pokemon,
   SaveData,
 } from "./types";
-import { ArenaTab, CodexTab, NewsTab, SaveTab, SettingsTab, ShopTab } from "./panels-tabs";
+import { ArenaTab, CareerTab, CodexTab, EggsTab, NewsTab, SaveTab, SettingsTab, ShopTab } from "./panels-tabs";
 
 export type PanelTab =
   | "items"
@@ -63,7 +66,9 @@ export type PanelTab =
   | "code"
   | "news"
   | "save"
-  | "settings";
+  | "settings"
+  | "career"
+  | "eggs";
 
 export interface GamePanelsProps {
   save: SaveData;
@@ -90,12 +95,20 @@ export interface GamePanelsProps {
   onClearDetails: () => void;
   onSetLanguage: (lang: Language) => void;
   onSetDustTrail: (on: boolean) => void;
+  /** v1.8.0: pin the banner biome (auto = step rotation). */
+  onSetBiome: (biome: string) => void;
+  /** v1.8.0: configure the 2 battle moves for a PC pokémon. */
+  onSetMoves: (pcIndex: number, moves: string[]) => void;
+  /** PC index of the Pokémon currently in the details view. */
+  detailsIdx: number | null;
 }
 
 const TABS: { id: PanelTab; label: string }[] = [
   { id: "items", label: "BAG" },
   { id: "team", label: "PC" },
   { id: "dex", label: "DEX" },
+  { id: "career", label: "CAREER" },
+  { id: "eggs", label: "EGGS" },
   { id: "center", label: "CENTER" },
   { id: "market", label: "MARKET" },
   { id: "rank", label: "RANK" },
@@ -135,6 +148,8 @@ export function GamePanels(props: GamePanelsProps) {
       {tab === "items" && <ItemsTab {...props} />}
       {tab === "team" && <TeamTab {...props} />}
       {tab === "dex" && <DexTab {...props} />}
+      {tab === "career" && <CareerTab {...props} />}
+      {tab === "eggs" && <EggsTab {...props} />}
       {tab === "center" && <CenterTab {...props} />}
       {tab === "market" && <MarketTab {...props} />}
       {tab === "rank" && <RankTab {...props} />}
@@ -246,7 +261,15 @@ function TeamTab(props: GamePanelsProps) {
   const { save } = props;
   const [pendingLeader, setPendingLeader] = useState<number | null>(null);
   if (props.detailsMon) {
-    return <DetailsView mon={props.detailsMon} onBack={props.onClearDetails} />;
+    return (
+      <DetailsView
+        mon={props.detailsMon}
+        save={props.save}
+        idx={props.detailsIdx}
+        onBack={props.onClearDetails}
+        onSetMoves={props.onSetMoves}
+      />
+    );
   }
   if (pendingLeader !== null) {
     const mon = save.pc[pendingLeader];
@@ -398,7 +421,19 @@ function PixelConfirm({
 
 // ---------------------------------------------------------------------------
 
-function DetailsView({ mon, onBack }: { mon: Pokemon; onBack: () => void }) {
+function DetailsView({
+  mon,
+  save,
+  idx,
+  onBack,
+  onSetMoves,
+}: {
+  mon: Pokemon;
+  save: SaveData;
+  idx: number | null;
+  onBack: () => void;
+  onSetMoves: (pcIndex: number, moves: string[]) => void;
+}) {
   const berries = ["berry", "sitrus"];
   const pct = (mon.hp / mon.maxHp) * 100;
   return (
@@ -446,6 +481,82 @@ function DetailsView({ mon, onBack }: { mon: Pokemon; onBack: () => void }) {
           </div>
         ))}
       </div>
+      <MovesSection mon={mon} save={save} idx={idx} onSetMoves={onSetMoves} />
+    </div>
+  );
+}
+
+function MovesSection({
+  mon,
+  save,
+  idx,
+  onSetMoves,
+}: {
+  mon: Pokemon;
+  save: SaveData;
+  idx: number | null;
+  onSetMoves: (pcIndex: number, moves: string[]) => void;
+}) {
+  if (idx === null) return null;
+  const lang = save.language;
+  const learnset = learnsetFor(mon);
+  const configured = mon.moves ?? [];
+  const toggle = (moveId: string) => {
+    const cur = [...configured];
+    if (cur.includes(moveId)) {
+      onSetMoves(idx, cur.filter((m) => m !== moveId));
+    } else if (cur.length < 2) {
+      onSetMoves(idx, [...cur, moveId]);
+    } else {
+      // both slots full: replace the second slot
+      onSetMoves(idx, [cur[0], moveId]);
+    }
+  };
+  return (
+    <div className="border-2 border-ink bg-white p-1.5">
+      <div className="mb-1 font-bold uppercase">{t(lang, "moves-title")}</div>
+      <div className="mb-1 flex gap-1">
+        {[0, 1].map((slot) => {
+          const id = configured[slot];
+          const move = id ? MOVES[id] : null;
+          return (
+            <div
+              key={slot}
+              className={`flex-1 border-2 border-ink p-1 text-center ${
+                move ? "bg-yellow-100" : "bg-gray-50"
+              }`}
+            >
+              {move ? (
+                <>
+                  <div className="font-bold">{localizedMoveName(id, lang)}</div>
+                  <div className="text-ink/60 uppercase">
+                    {getSpecies(mon.speciesId).types.includes(move.type)
+                      ? "STAB"
+                      : move.type}
+                  </div>
+                </>
+              ) : (
+                <span className="text-ink/50">SLOT {slot + 1}</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="grid grid-cols-2 gap-1">
+        {learnset.map((m) => (
+          <button
+            key={m.id}
+            className={`nb-btn !px-1 text-left ${
+              configured.includes(m.id) ? "bg-green-300" : "bg-gray-100"
+            }`}
+            onClick={() => toggle(m.id)}
+          >
+            {localizedMoveName(m.id, lang)}
+            <span className="ml-1 text-ink/60">P{m.power}</span>
+          </button>
+        ))}
+      </div>
+      <div className="mt-1 text-ink/70">{t(lang, "moves-hint")}</div>
     </div>
   );
 }

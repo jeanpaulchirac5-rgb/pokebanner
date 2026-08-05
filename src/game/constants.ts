@@ -84,6 +84,8 @@ export const SPECIES: Record<string, SpeciesDef> = Object.fromEntries(
     base("staryu", "Staryu", ["water"], 30, 45, 55, 225, 68),
     base("raichu", "Raichu", ["electric"], 60, 90, 55, 75, 122),
     // post-game champions & richer wild variety
+    base("kadabra", "Kadabra", ["psychic"], 40, 35, 30, 200, 145),
+    base("arcanine", "Arcanine", ["fire"], 90, 110, 80, 75, 213),
     base("vileplume", "Vileplume", ["grass", "poison"], 75, 80, 85, 45, 216),
     base("weezing", "Weezing", ["poison"], 65, 90, 120, 60, 172),
     base("rhydon", "Rhydon", ["ground", "rock"], 105, 130, 120, 60, 170),
@@ -92,6 +94,12 @@ export const SPECIES: Record<string, SpeciesDef> = Object.fromEntries(
     base("growlithe", "Growlithe", ["fire"], 55, 70, 45, 190, 70),
     base("ponyta", "Ponyta", ["fire"], 50, 85, 55, 190, 82),
     base("tentacool", "Tentacool", ["water", "poison"], 40, 40, 35, 190, 67),
+    // Legendary Bosses (v1.8.0) — rare weather events spawn these. Low catch
+    // rate, huge stats, big XP/money yields. Ice type joins for Articuno.
+    base("articuno", "Articuno", ["ice", "flying"], 90, 85, 100, 3, 290),
+    base("zapdos", "Zapdos", ["electric", "flying"], 90, 90, 85, 3, 290),
+    base("moltres", "Moltres", ["fire", "flying"], 90, 100, 90, 3, 290),
+    base("mewtwo", "Mewtwo", ["psychic"], 106, 110, 90, 3, 340),
     // Mythical easter egg — Celebi, the time traveler (beyond the 151)
     base("celebi", "Celebi", ["psychic", "grass"], 100, 100, 100, 3, 400, { nightOnly: false }),
   ].map((s) => [s.id, s]),
@@ -302,6 +310,7 @@ export const TYPE_COLORS: Record<TypeName, string> = {
   flying: "bg-sky-300",
   ghost: "bg-violet-300",
   fighting: "bg-orange-300",
+  ice: "bg-cyan-300",
   psychic: "bg-pink-300",
 };
 
@@ -344,6 +353,9 @@ export const MOVES: Record<string, MoveDef> = {
   confusion: { id: "confusion", name: "Confusion", type: "psychic", power: 50, accuracy: 100, target: "enemy" },
   "psybeam": { id: "psybeam", name: "Psybeam", type: "psychic", power: 65, accuracy: 100, target: "enemy" },
   "ancient-power": { id: "ancient-power", name: "Ancient Power", type: "rock", power: 60, accuracy: 100, target: "enemy" },
+  // v1.8.0: legendary birds & Mewtwo signature moves (ice joins the chart)
+  "ice-beam": { id: "ice-beam", name: "Ice Beam", type: "ice", power: 90, accuracy: 100, target: "enemy" },
+  "wing-attack": { id: "wing-attack", name: "Wing Attack", type: "flying", power: 60, accuracy: 100, target: "enemy" },
 };
 
 const STARTER_MOVES: Record<string, string[]> = {
@@ -389,6 +401,7 @@ const STAB_FALLBACK: Record<TypeName, string> = {
   flying: "gust",
   ghost: "tackle",
   fighting: "tackle",
+  ice: "ice-beam",
   psychic: "confusion",
 };
 
@@ -399,6 +412,8 @@ const CHAMPION_MOVES: Record<string, string[]> = {
   vileplume: ["vine-whip", "leech-seed", "sleep-powder", "poison-powder"],
   weezing: ["sludge", "poison-sting", "rock-slide", "tackle"],
   rhydon: ["rock-throw", "rock-slide", "tackle"],
+  kadabra: ["confusion", "psybeam", "quick-attack", "tackle"],
+  arcanine: ["ember", "fire-fang", "flame-charge", "quick-attack"],
 };
 
 /**
@@ -425,6 +440,23 @@ export const WILD_MOVES: Record<string, string[]> = {
   growlithe: ["ember", "bite", "quick-attack", "fire-fang"],
   ponyta: ["ember", "quick-attack", "tackle", "flame-charge"],
   tentacool: ["water-gun", "acid", "poison-sting"],
+  // Legendary Boss learnsets (v1.8.0) — signature kits, no generic fallback
+  articuno: ["ice-beam", "wing-attack", "gust", "peck"],
+  zapdos: ["thunderbolt", "thunder-wave", "wing-attack", "quick-attack"],
+  moltres: ["ember", "fire-fang", "wing-attack", "flame-charge"],
+  mewtwo: ["psybeam", "confusion", "thunderbolt", "ice-beam"],
+  // Beach biome water species (v1.8.0)
+  staryu: ["water-gun", "psybeam", "tackle", "quick-attack"],
+  psyduck: ["water-gun", "scratch", "confusion", "peck"],
+  horsea: ["water-gun", "peck", "tackle", "quick-attack"],
+  goldeen: ["water-gun", "peck", "tackle", "quick-attack"],
+  magikarp: ["tackle", "quick-attack", "water-gun"],
+  // League biome species (v1.8.0)
+  raichu: ["thunder-shock", "thunderbolt", "quick-attack", "thunder-wave"],
+  snorlax: ["tackle", "bite", "ancient-power", "rock-slide"],
+  hitmonlee: ["karate-chop", "rock-slide", "mud-slap", "quick-attack"],
+  machoke: ["karate-chop", "rock-throw", "mud-slap", "tackle"],
+  gyarados: ["bite", "water-gun", "ancient-power", "ice-beam"],
 };
 
 export function starterMovesFor(speciesId: string): MoveDef[] {
@@ -463,17 +495,18 @@ export function defaultMovesFor(speciesId: string, championId?: string): MoveDef
 
 export const TYPE_CHART: Record<TypeName, Partial<Record<TypeName, number>>> = {
   normal: { rock: 0.5, ghost: 0 },
-  grass: { fire: 0.5, grass: 0.5, poison: 0.5, flying: 0.5, bug: 0.5, water: 2, ground: 2, rock: 2 },
-  fire: { fire: 0.5, water: 0.5, rock: 0.5, grass: 2, bug: 2 },
-  water: { water: 0.5, grass: 0.5, fire: 2, ground: 2, rock: 2 },
+  grass: { fire: 0.5, grass: 0.5, poison: 0.5, flying: 0.5, bug: 0.5, water: 2, ground: 2, rock: 2, ice: 0.5 },
+  fire: { fire: 0.5, water: 0.5, rock: 0.5, grass: 2, bug: 2, ice: 2 },
+  water: { water: 0.5, grass: 0.5, fire: 2, ground: 2, rock: 2, ice: 0.5 },
   electric: { electric: 0.5, grass: 0.5, ground: 0, water: 2, flying: 2 },
   bug: { fire: 0.5, grass: 2, poison: 2, flying: 0.5, ghost: 0.5, fighting: 0.5 },
   poison: { grass: 2, poison: 0.5, ground: 0.5, rock: 0.5, ghost: 0.5 },
-  ground: { fire: 2, electric: 2, poison: 2, rock: 2, grass: 0.5, bug: 0.5, flying: 0 },
-  rock: { fire: 2, flying: 2, bug: 2, fighting: 0.5, ground: 0.5 },
-  flying: { grass: 2, bug: 2, fighting: 2, electric: 0.5, rock: 0.5 },
+  ground: { fire: 2, electric: 2, poison: 2, rock: 2, grass: 0.5, bug: 0.5, flying: 0, ice: 2 },
+  rock: { fire: 2, flying: 2, bug: 2, fighting: 0.5, ground: 0.5, ice: 2 },
+  flying: { grass: 2, bug: 2, fighting: 2, electric: 0.5, rock: 0.5, ice: 2 },
   ghost: { normal: 0 },
-  fighting: { normal: 2, rock: 2, ghost: 0 },
+  fighting: { normal: 2, rock: 2, ghost: 0, ice: 2 },
+  ice: { fire: 0.5, water: 0.5, ice: 0.5, grass: 2, ground: 2, flying: 2 },
   psychic: { poison: 2, fighting: 2, psychic: 0.5, ghost: 0.5 },
 };
 
@@ -530,9 +563,61 @@ export const BIOMES: BiomeDef[] = [
     prop: "#4fc3f7",
     prop2: "#b3e5fc",
   },
+  {
+    id: "beach",
+    name: "Seafoam Beach",
+    pool: ["staryu", "tentacool", "psyduck", "horsea", "goldeen", "magikarp"],
+    ground: "#e8d6a8",
+    grass: "#d9c98f",
+    accent: "#c9b878",
+    hill: "#a8c8e8",
+    soil: "#b7a76f",
+    prop: "#6ec4f8",
+    prop2: "#e3f2fd",
+  },
+  {
+    id: "league",
+    name: "Indigo League",
+    pool: ["raichu", "snorlax", "hitmonlee", "growlithe", "machoke", "gyarados"],
+    ground: "#8d7fae",
+    grass: "#7a6ea3",
+    accent: "#5f5494",
+    hill: "#4a3f80",
+    soil: "#6e6399",
+    prop: "#ffd54f",
+    prop2: "#fff59d",
+  },
 ];
 
 export const ROCKET_POOL = ["rattata", "ekans", "zubat", "mankey"];
+
+/** Legendary Bosses (v1.8.0) — spawn only during Eclipse / Aurora events. */
+export const LEGENDS: string[] = ["articuno", "zapdos", "moltres", "mewtwo"];
+
+/**
+ * Egg species pool (v1.8.0). Walking hatches a random member; legendaries
+ * are deliberately absent (they come from weather events) but the rest are
+ * mid-rare Kanto species you'd otherwise hunt for a while.
+ */
+export const EGG_POOL: [string, number][] = [
+  ["clefairy", 10],
+  ["jigglypuff", 10],
+  ["vulpix", 10],
+  ["abra", 10],
+  ["growlithe", 10],
+  ["ponyta", 10],
+  ["eevee", 9],
+  ["porygon", 8],
+  ["chansey", 7],
+  ["scyther", 6],
+  ["pinsir", 6],
+  ["lapras", 5],
+  ["kangaskhan", 5],
+  ["aerodactyl", 4],
+  ["dratini", 4],
+  ["snorlax", 3],
+  ["ditto", 3],
+];
 
 /** The three Pokémon Center care services. */
 export const CENTER_SERVICES: Record<
@@ -559,6 +644,8 @@ export const CHAMPIONS: ChampionDef[] = [
   { id: "surge", name: "Lt. Surge", title: "Gym Leader · Vermilion", speciesId: "raichu", badge: "Thunder Badge", color: "#ffd54f" },
   { id: "erika", name: "Erika", title: "Gym Leader · Celadon", speciesId: "vileplume", badge: "Rainbow Badge", color: "#3ddc3d" },
   { id: "koga", name: "Koga", title: "Gym Leader · Fuchsia", speciesId: "weezing", badge: "Soul Badge", color: "#9b59b6" },
+  { id: "sabrina", name: "Sabrina", title: "Gym Leader · Saffron", speciesId: "kadabra", badge: "Marsh Badge", color: "#f48fb1" },
+  { id: "blaine", name: "Blaine", title: "Gym Leader · Cinnabar", speciesId: "arcanine", badge: "Volcano Badge", color: "#ff7043" },
   { id: "giovanni", name: "Giovanni", title: "Gym Leader · Viridian", speciesId: "rhydon", badge: "Earth Badge", color: "#8d6e63" },
 ];
 
@@ -569,6 +656,8 @@ export const ITEMS: Record<string, ItemDef> = {
   sitrus: { id: "sitrus", name: "Sitrus Berry", desc: "Restores 25% of max HP.", price: 500, healPct: 0.25 },
   potion: { id: "potion", name: "Potion", desc: "Restores 20 HP.", price: 300, healFlat: 20 },
   hyperpotion: { id: "hyperpotion", name: "Hyper Potion", desc: "Restores 200 HP.", price: 1200, healFlat: 200 },
+  // v1.8.0: a purchasable Mystery Egg — walking hatches it into a rare species
+  egg: { id: "egg", name: "Mystery Egg", desc: "Hatches while you walk!", price: 800 },
 };
 
 export const GROUND_ITEM_WEIGHTS: [string, number][] = [
@@ -576,6 +665,7 @@ export const GROUND_ITEM_WEIGHTS: [string, number][] = [
   ["pokeball", 0.35],
   ["sitrus", 0.15],
   ["potion", 0.1],
+  ["egg", 0.06],
 ];
 
 // ---------------------------------------------------------------------------
@@ -587,7 +677,7 @@ export const GROUND_ITEM_WEIGHTS: [string, number][] = [
 // packaged desktop installer filename (kept in sync with desktop/package.json).
 // ---------------------------------------------------------------------------
 
-export const GAME_VERSION = "1.7.1";
+export const GAME_VERSION = "1.8.0";
 
 export const TUNING = {
   bannerHeight: 60,
@@ -607,6 +697,9 @@ export const TUNING = {
   moneyPerWild: 10,
   moneyPerRocketBase: 1500,
   moneyPerChampion: 3000,
+  /** Legendary Boss rewards (v1.8.0) — worth the rare weather event. */
+  moneyPerLegendary: 1500,
+  legendaryXpMult: 2,
   championXpMult: 2.5,
   rocketXpMult: 1.2,
   benchXpShare: 0.5,
@@ -632,12 +725,17 @@ export const TUNING = {
     rain: 0.8,
     snow: 0.9,
     starry: 1,
+    eclipse: 1.05,
+    aurora: 1.05,
   } as Record<WeatherKind, number>,
   maxLevel: 100,
   teamMax: 6,
   expShareBench: 0.5,
   /** Same-Type Attack Bonus — matching the attacker's type deals 1.5×. */
   stabMult: 1.5,
+  /** Egg incubation window (steps walked), rolled per egg (v1.8.0). */
+  eggStepsMin: 300,
+  eggStepsMax: 600,
 };
 
 export const UI = {

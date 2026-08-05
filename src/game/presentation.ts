@@ -954,7 +954,9 @@ export interface WeatherParticle {
 }
 
 /** Full-scene atmosphere tint for a weather state (rgba overlay). Starry only
- *  ever occurs at night, so it deepens the night instead of brightening it. */
+ *  ever occurs at night, so it deepens the night instead of brightening it.
+ *  v1.8.0: Eclipse dims the world into a bronze twilight; Aurora washes the
+ *  night in a faint boreal green. */
 export function weatherTint(weather: WeatherKind): string {
   switch (weather) {
     case "rain":
@@ -963,6 +965,10 @@ export function weatherTint(weather: WeatherKind): string {
       return "rgba(214,234,255,0.20)";
     case "starry":
       return "rgba(8,12,42,0.18)";
+    case "eclipse":
+      return "rgba(58,26,8,0.42)";
+    case "aurora":
+      return "rgba(20,70,52,0.24)";
     default:
       return "transparent";
   }
@@ -999,7 +1005,8 @@ export function weatherParticles(
         color: rnd() < 0.5 ? "#9db8d9" : "#c6d9f2",
         swayPx: 2 + Math.floor(rnd() * 3),
       });
-    } else if (weather === "snow") {
+    } else if (weather === "snow" || weather === "aurora") {
+      // Aurora reuses the slow swaying flake field with boreal colors.
       const size = 2 + Math.floor(rnd() * 2);
       out.push({
         kind: "snow",
@@ -1009,10 +1016,16 @@ export function weatherParticles(
         height: size,
         delaySec: +(rnd() * 2.2).toFixed(2),
         durSec: +(1.8 + rnd() * 1.4).toFixed(2),
-        color: "#eef6ff",
+        color:
+          weather === "aurora"
+            ? rnd() < 0.5
+              ? "#7fffd4"
+              : "#67e8f9"
+            : "#eef6ff",
         swayPx: 4 + Math.floor(rnd() * 5),
       });
-    } else {
+    } else if (weather === "eclipse") {
+      // Eclipse: dark embers drifting across the dimmed sky (star twinkle class).
       const size = 1 + Math.floor(rnd() * 2);
       out.push({
         kind: "star",
@@ -1023,6 +1036,20 @@ export function weatherParticles(
         delaySec: +(rnd() * 2.6).toFixed(2),
         durSec: +(1.4 + rnd() * 1.6).toFixed(2),
         color: rnd() < 0.7 ? "#fff7c2" : "#cfe4ff",
+        swayPx: 0,
+      });
+    } else if (weather === "starry") {
+      // Starry nights: a twinkling star field (same star class as eclipse).
+      const size = 1 + Math.floor(rnd() * 2);
+      out.push({
+        kind: "star",
+        leftPct: +(2 + rnd() * 96).toFixed(2),
+        topPx: 2 + rnd() * 14,
+        width: size,
+        height: size,
+        delaySec: +(rnd() * 2.8).toFixed(2),
+        durSec: +(1.6 + rnd() * 1.8).toFixed(2),
+        color: rnd() < 0.8 ? "#ffffff" : "#cfe4ff",
         swayPx: 0,
       });
     }

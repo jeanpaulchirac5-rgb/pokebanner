@@ -18,6 +18,7 @@ import {
   CHAMPIONS,
   DEX_MILESTONES,
   ITEMS,
+  MOVES,
   TUNING,
   getDexMeta,
 } from "./constants";
@@ -47,10 +48,13 @@ import {
 import {
   addToPc,
   addToTeam,
+  advanceEggs,
   applyCenterService,
   badgeDamageBonus,
+  biomeIndexForSave,
   biomeIndexForSteps,
   buildEncounter,
+  buildLegendaryEncounter,
   captureAttempt,
   championBookkeeping,
   checkEvolution,
@@ -69,6 +73,7 @@ import {
   normalizeSave,
   pickupGroundItem,
   pokedexMilestone,
+  randomEgg,
   setupChampion,
   switchLeader,
   timePhase,
@@ -183,6 +188,8 @@ interface GameRef {
   arenaAvailable: boolean;
   arenaClearedLevel: number;
   detailsMon: Pokemon | null;
+  /** PC index of the Pokémon being viewed (move configuration targets it). */
+  detailsIdx: number | null;
   battle: { leader: Pokemon; enemy: Pokemon; enemyChampionId?: string } | null;
   hpFlash: "leader" | "enemy" | null;
   lunge: "leader" | "enemy" | null;
@@ -300,6 +307,7 @@ export default function PokemonBanner() {
       arenaAvailable: false,
       arenaClearedLevel: 0,
       detailsMon: null,
+      detailsIdx: null,
       battle: null,
       hpFlash: null,
       lunge: null,
@@ -397,7 +405,11 @@ export default function PokemonBanner() {
                   ? tr("snow-start")
                   : w === "starry"
                     ? tr("starry-start")
-                    : tr("clear-sky");
+                    : w === "eclipse"
+                      ? tr("eclipse-start")
+                      : w === "aurora"
+                        ? tr("aurora-start")
+                        : tr("clear-sky");
             s.messageUntil = now + 2600;
             s.notif = { color: w === "starry" ? "blue" : "red", key: Date.now() };
             playSfx(
@@ -407,7 +419,11 @@ export default function PokemonBanner() {
                   ? "weather-snow"
                   : w === "starry"
                     ? "weather-starry"
-                    : "weather-clear",
+                    : w === "eclipse"
+                      ? "weather-eclipse"
+                      : w === "aurora"
+                        ? "weather-aurora"
+                        : "weather-clear",
             );
           }
         }
@@ -435,7 +451,32 @@ export default function PokemonBanner() {
         }
         s.leaderX = nx;
         s.save = { ...s.save, steps: s.save.steps + 1 };
-        const biomeIdx = biomeIndexForSteps(s.save.steps);
+        // Egg incubation (v1.8.0): every step walked ticks the eggs; when one
+        // reaches 0 it hatches into its species (PC + team if room).
+        const eggRes = advanceEggs(s.save.eggs ?? []);
+        if (eggRes.hatched.length > 0) {
+          const egg = eggRes.hatched[0];
+          const lvl = Math.max(1, (s.save.team[0]?.level ?? 5) - 1);
+          const hatched = makePokemon(egg.speciesId, lvl, { shiny: egg.shiny });
+          s.save = normalizeSave({
+            ...s.save,
+            eggs: eggRes.eggs,
+            pc: addToPc(s.save.pc, hatched),
+            team:
+              s.save.team.length < TUNING.teamMax
+                ? addToTeam(s.save.team, hatched)
+                : s.save.team,
+            pokedex: markPokedex(s.save.pokedex, egg.speciesId, "caught"),
+            eggsHatched: s.save.eggsHatched + eggRes.hatched.length,
+          });
+          s.notif = { color: "red", key: Date.now() };
+          playSfx("evolve");
+          s.message = tr("egg-hatched", { mon: trName(egg.speciesId) });
+          s.messageUntil = now + 2600;
+          preloadSprites([egg.speciesId]);
+        }
+        // Biome: a player-chosen biome pins the scenery; "auto" rotates.
+        const biomeIdx = biomeIndexForSave(s.save);
         if (biomeIdx !== s.lastStepBiome) {
           s.lastStepBiome = biomeIdx;
           preloadSprites(BIOMES[biomeIdx].pool);
@@ -498,14 +539,25 @@ export default function PokemonBanner() {
           const night = timePhase(s.save.startedAt, now) === "night";
           const leader = s.save.team[0];
           const level = leader?.level ?? 5;
-          const encounter = buildEncounter({
-            poolIds: BIOMES[biomeIdx].pool,
-            levelRange: [Math.max(1, level - 2), level + 2],
-            night,
-            allowRocket: true,
-            rng,
-          });
+          // Rare weather events (v1.8.0): during an Eclipse or Aurora the
+          // next encounter is ALWAYS a Legendary Boss — no Rocket/wild roll.
+          const legendaryEvent = w === "eclipse" || w === "aurora";
+          const encounter = legendaryEvent
+            ? buildLegendaryEncounter(level, rng)
+            : buildEncounter({
+                poolIds: BIOMES[biomeIdx].pool,
+                levelRange: [Math.max(1, level - 2), level + 2],
+                night,
+                allowRocket: true,
+                rng,
+              });
           const pokemon = makeWildEnemy(s.save, encounter);
+          if (legendaryEvent) {
+            s.notif = { color: "red", key: Date.now() };
+            s.message = tr("legendary-appears", { mon: trName(encounter.speciesId) });
+            s.messageUntil = now + 2800;
+            playSfx("shiny");
+          }
           s.save = {
             ...s.save,
             pokedex: markPokedex(s.save.pokedex, encounter.speciesId, "seen"),
@@ -740,6 +792,7 @@ export default function PokemonBanner() {
         ...save,
         team: share.team,
         money: save.money + rewards.moneyGain,
+        moneyEarned: save.moneyEarned + rewards.moneyGain,
         battlesWon: save.battlesWon + 1,
       };
       // Post-battle recovery: fainted team members revive to full HP so the
@@ -761,6 +814,9 @@ export default function PokemonBanner() {
       }
       if (s.enemy!.encounter.kind === "rocket") {
         nextSave = { ...nextSave, rocketsDefeated: nextSave.rocketsDefeated + 1 };
+      }
+      if (s.enemy!.encounter.kind === "legendary") {
+        nextSave = { ...nextSave, legendariesDefeated: nextSave.legendariesDefeated + 1 };
       }
       let badgeMsg: string | null = null;
       if (s.enemy!.encounter.kind === "champion") {
@@ -884,6 +940,8 @@ export default function PokemonBanner() {
         s.pauseLeft = 2800;
         s.message = tr("fainted", { mon: trName(next.leader.speciesId) });
         s.messageUntil = now + 2800;
+        // Lifetime career stat (v1.8.0).
+        s.save = { ...s.save, battlesLost: s.save.battlesLost + 1 };
         // full restore after the regen pause (battle ref cleared at resume)
         window.setTimeout(() => {
           if (!g.current) return;
@@ -976,6 +1034,8 @@ export default function PokemonBanner() {
         ? markShinyCaught(s.save.shinyCaught ?? [], mon.speciesId)
         : s.save.shinyCaught,
       money: s.save.money + 5,
+      moneyEarned: s.save.moneyEarned + 5,
+      captures: s.save.captures + 1,
     });
     const caughtAfter = Object.values(s.save.pokedex).filter((v) => v === "caught").length;
     const newlyEarned = dexMilestonesEarned(caughtAfter).filter(
@@ -987,6 +1047,7 @@ export default function PokemonBanner() {
         s.save = normalizeSave({
           ...s.save,
           money: s.save.money + m.money,
+          moneyEarned: s.save.moneyEarned + m.money,
           inventory: {
             ...s.save.inventory,
             [m.item]: (s.save.inventory[m.item] ?? 0) + m.qty,
@@ -1065,12 +1126,22 @@ export default function PokemonBanner() {
     const s = g.current!;
     if (!s.groundItem) return;
     const itemId = pickupGroundItem(rng);
-    s.save = normalizeSave({
-      ...s.save,
-      inventory: { ...s.save.inventory, [itemId]: (s.save.inventory[itemId] ?? 0) + 1 },
-    });
-    playSfx("pickup");
-    s.message = tr("found-item", { item: localizedItemName(itemId, s.save.language) });
+    if (itemId === "egg") {
+      // A Mystery Egg goes straight into the incubator, not the bag.
+      s.save = normalizeSave({
+        ...s.save,
+        eggs: [...(s.save.eggs ?? []), randomEgg(rng)],
+      });
+      playSfx("pickup");
+      s.message = tr("egg-found");
+    } else {
+      s.save = normalizeSave({
+        ...s.save,
+        inventory: { ...s.save.inventory, [itemId]: (s.save.inventory[itemId] ?? 0) + 1 },
+      });
+      playSfx("pickup");
+      s.message = tr("found-item", { item: localizedItemName(itemId, s.save.language) });
+    }
     s.messageUntil = Date.now() + 1400;
     s.groundItem = null;
     persist();
@@ -1144,6 +1215,7 @@ export default function PokemonBanner() {
     s.message = tr("leads", { mon: trName(mon.speciesId) });
     s.messageUntil = Date.now() + 1400;
     s.detailsMon = null;
+    s.detailsIdx = null;
     persist();
     rerender();
   };
@@ -1175,6 +1247,23 @@ export default function PokemonBanner() {
     const s = g.current!;
     const item = ITEMS[itemId];
     if (!item) return;
+    // Mystery Eggs (v1.8.0) incubate instead of going into the bag.
+    if (itemId === "egg") {
+      if (s.save.money < item.price * qty) {
+        s.message = tr("not-enough");
+        s.messageUntil = Date.now() + 1400;
+        rerender();
+        return;
+      }
+      const eggs = [...(s.save.eggs ?? [])];
+      for (let i = 0; i < qty; i++) eggs.push(randomEgg(rng));
+      s.save = normalizeSave({ ...s.save, money: s.save.money - item.price * qty, eggs });
+      s.message = tr("bought", { item: localizedItemName(itemId, s.save.language) });
+      s.messageUntil = Date.now() + 1400;
+      persist();
+      rerender();
+      return;
+    }
     const res = purchaseItemLocal(s, itemId, item.price, qty);
     if (!res.ok) {
       s.message = tr("not-enough");
@@ -1228,6 +1317,37 @@ export default function PokemonBanner() {
   const onViewDetails = (index: number) => {
     const s = g.current!;
     s.detailsMon = s.save.pc[index] ?? null;
+    s.detailsIdx = s.detailsMon ? index : null;
+    rerender();
+  };
+
+  /** v1.8.0: pick the 2 moves this Pokémon uses in battle (from its learnset). */
+  const onSetMoves = (pcIndex: number, moves: string[]) => {
+    const s = g.current!;
+    const mon = s.save.pc[pcIndex];
+    if (!mon) return;
+    const clean = moves.filter((m) => Boolean(MOVES[m])).slice(0, 2);
+    const updated = { ...mon, moves: clean.length > 0 ? clean : undefined };
+    const pc = s.save.pc.map((m, i) => (i === pcIndex ? updated : m));
+    const team = s.save.team.map((m) =>
+      m.speciesId === mon.speciesId && m.level === mon.level
+        ? { ...m, moves: updated.moves }
+        : m,
+    );
+    s.save = normalizeSave({ ...s.save, pc, team });
+    s.detailsMon = updated;
+    persist();
+    rerender();
+  };
+
+  /** v1.8.0: pin the banner's biome ("auto" restores the step rotation). */
+  const onSetBiome = (biome: string) => {
+    const s = g.current!;
+    s.save = normalizeSave({ ...s.save, biome });
+    const idx = biomeIndexForSave(s.save);
+    s.lastStepBiome = idx;
+    preloadSprites(BIOMES[idx].pool);
+    persist();
     rerender();
   };
 
@@ -1291,6 +1411,7 @@ export default function PokemonBanner() {
       pc,
       team,
       money: s.save.money + price,
+      moneyEarned: s.save.moneyEarned + price,
     });
     playSfx("pickup");
     s.message = tr("sold", { mon: trName(mon.speciesId), price });
@@ -1535,7 +1656,7 @@ export default function PokemonBanner() {
   // screen against an empty normalized save instead of crashing on save.team.
   const save = s.save ?? normalizeSave({});
   const leader = save.team[0];
-  const biome = BIOMES[biomeIndexForSteps(save.steps)];
+  const biome = BIOMES[biomeIndexForSave(save)];
   const phase = timePhase(save.startedAt, Date.now());
   const weather = weatherFor(save.startedAt, Date.now(), phase);
   const phaseTint =
@@ -1846,6 +1967,27 @@ export default function PokemonBanner() {
           </>
         )}
 
+        {/* Incubating eggs (v1.8.0) — bob above the leader while walking */}
+        {walking && save.eggs.length > 0 && (
+          <div className="absolute z-20 flex gap-0.5" style={{ left: s.leaderX + 10, bottom: 42 }}>
+            {save.eggs.slice(0, 3).map((e, i) => (
+              <span
+                key={i}
+                className="egg-wiggle flex h-3.5 w-3.5 items-center justify-center border-2 border-ink bg-white text-[7px]"
+                style={{ animationDelay: `${i * 0.25}s` }}
+                title={`${trName(e.speciesId)} · ${e.steps}/${e.needed}`}
+              >
+                🥚
+              </span>
+            ))}
+            {save.eggs.length > 3 && (
+              <span className="flex h-3.5 w-3.5 items-center justify-center border-2 border-ink bg-white text-[6px]">
+                +{save.eggs.length - 3}
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Approach: wild pokémon moving in from the right */}
         {s.phase === "approach" && s.enemy && (
           <>
@@ -1875,6 +2017,20 @@ export default function PokemonBanner() {
             }}
           />
           </>
+        )}
+
+        {/* Legendary Boss tag (v1.8.0) — visible during approach and battle */}
+        {(s.phase === "approach" || inBattle) && s.enemy?.encounter.kind === "legendary" && (
+          <div
+            className="legendary-pulse absolute z-20 border-2 border-ink bg-purple-700 px-1 py-0.5 text-[6px] font-bold uppercase text-white"
+            style={
+              s.phase === "approach"
+                ? { left: s.enemy.x + 6, top: 6 }
+                : { right: 46, top: 4 }
+            }
+          >
+            ★ {tr("legendary-tag")}
+          </div>
         )}
 
         {/* Battle: leader left, enemy right, HP bars above */}
@@ -2256,9 +2412,13 @@ export default function PokemonBanner() {
               persist();
               rerender();
             }}
+            onSetBiome={onSetBiome}
+            onSetMoves={onSetMoves}
+            detailsIdx={s.detailsIdx}
             onClearDetails={() => {
               const x = g.current!;
               x.detailsMon = null;
+              x.detailsIdx = null;
               rerender();
             }}
             detailsMon={s.detailsMon}

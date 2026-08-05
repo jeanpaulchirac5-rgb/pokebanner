@@ -19,6 +19,7 @@ export type TypeName =
   | "flying"
   | "ghost"
   | "fighting"
+  | "ice"
   | "psychic";
 
 /** The three care services offered by the Pokémon Center. */
@@ -72,9 +73,13 @@ export interface Pokemon {
   statusTurns: number;
   shiny: boolean;
   nickname?: string;
+  /** Optional player-configured battle moves (1–2 ids from the learnset).
+   *  When set, the leader uses exactly these in battle instead of the
+   *  species default learnset (v1.8.0 move configuration). */
+  moves?: string[];
 }
 
-export type EncounterKind = "wild" | "rocket" | "champion";
+export type EncounterKind = "wild" | "rocket" | "champion" | "legendary";
 
 export interface Encounter {
   kind: EncounterKind;
@@ -108,6 +113,16 @@ export interface DexEntry {
 
 export type DexRarity = "common" | "uncommon" | "rare" | "mythic";
 
+/** One incubating egg (v1.8.0). Steps tick down while the leader walks. */
+export interface Egg {
+  speciesId: string;
+  /** Remaining steps before this egg hatches. */
+  steps: number;
+  /** Total steps required to hatch (progress bar denominator). */
+  needed: number;
+  shiny?: boolean;
+}
+
 export interface SaveData {
   version: 2;
   starterSpeciesId: string;
@@ -137,6 +152,16 @@ export interface SaveData {
   dustTrail: boolean;
   /** Selected display language ("en" | "fr" | "de" | "es" | "ja"). */
   language: Language;
+  /** Active biome id, or "auto" to rotate with steps (v1.8.0). */
+  biome: string;
+  /** Incubating eggs — tick down with steps while walking (v1.8.0). */
+  eggs: Egg[];
+  /** Lifetime career stats (v1.8.0). */
+  moneyEarned: number;
+  captures: number;
+  battlesLost: number;
+  eggsHatched: number;
+  legendariesDefeated: number;
 }
 
 /** Legacy shape used by the very first version of the game. */
@@ -195,8 +220,16 @@ export type Rng = () => number;
 
 export type TimePhase = "day" | "sunset" | "night";
 
-/** Dynamic weather states (v1.5.0) — rolls once per 5-minute cycle. */
-export type WeatherKind = "clear" | "rain" | "snow" | "starry";
+/** Dynamic weather states (v1.5.0+) — rolls once per 5-minute cycle.
+ *  v1.8.0 adds the rare Eclipse (day) and Aurora (night) events that lure
+ *  out Legendary Bosses. */
+export type WeatherKind =
+  | "clear"
+  | "rain"
+  | "snow"
+  | "starry"
+  | "eclipse"
+  | "aurora";
 
 export interface ItemDef {
   id: string;

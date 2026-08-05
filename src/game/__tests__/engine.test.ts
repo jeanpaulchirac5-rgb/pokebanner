@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   BIOMES,
   DEX_META,
+  EGG_POOL,
   KANTO_151,
+  LEGENDS,
   MOVES,
   ROCKET_POOL,
+  TUNING,
   WILD_MOVES,
   defaultMovesFor,
   starterMovesFor,
@@ -57,7 +60,13 @@ import {
   switchLeader,
   timePhase,
   typeMultiplier,
+  advanceEggs,
   applyItemOn,
+  biomeIndexForSave,
+  buildLegendaryEncounter,
+  leaderMovesFor,
+  learnsetFor,
+  randomEgg,
   weatherEncounterMult,
   weatherFor,
   xpNeeded,
@@ -759,9 +768,18 @@ describe("buildEncounter", () => {
     expect(champ.championId).toBe("brock");
   });
 
-  it("champions cycle through all six gym leaders by index", () => {
-    const ids = [0, 1, 2, 3, 4, 5].map((i) => setupChampion(10, i).championId);
-    expect(ids).toEqual(["brock", "misty", "surge", "erika", "koga", "giovanni"]);
+  it("champions cycle through all eight gym leaders by index", () => {
+    const ids = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => setupChampion(10, i).championId);
+    expect(ids).toEqual([
+      "brock",
+      "misty",
+      "surge",
+      "erika",
+      "koga",
+      "sabrina",
+      "blaine",
+      "giovanni",
+    ]);
   });
 
   it("champion enemies use their signature movepool via enemyChampionId", () => {
@@ -788,11 +806,27 @@ describe("buildEncounter", () => {
     ).toBe(true);
   });
 
-  it("biome rotates every 500 steps", () => {
+  it("biome rotates every 500 steps through all five biomes", () => {
+    expect(BIOMES.length).toBe(5);
     expect(biomeIndexForSteps(0)).toBe(0);
     expect(biomeIndexForSteps(500)).toBe(1);
     expect(biomeIndexForSteps(1000)).toBe(2);
-    expect(biomeIndexForSteps(1500)).toBe(0);
+    expect(biomeIndexForSteps(1500)).toBe(3);
+    expect(biomeIndexForSteps(2000)).toBe(4);
+    expect(biomeIndexForSteps(2500)).toBe(0);
+  });
+
+  it("biomeIndexForSave pins a chosen biome or falls back to the step rotation", () => {
+    const base = createSave("bulbasaur");
+    // "auto" (default) and unknown ids rotate with steps
+    expect(biomeIndexForSave({ biome: "auto", steps: 0 })).toBe(0);
+    expect(biomeIndexForSave({ biome: "auto", steps: 1200 })).toBe(2);
+    // a pinned biome always wins
+    expect(biomeIndexForSave({ biome: "beach", steps: 1200 })).toBe(3);
+    expect(biomeIndexForSave({ biome: "league", steps: 0 })).toBe(4);
+    // saved pins survive a round-trip through normalizeSave
+    const pinned = normalizeSave({ ...base, biome: "cave" });
+    expect(biomeIndexForSave(pinned)).toBe(2);
   });
 
   it("timePhase normalizes clock skew instead of going negative", () => {
@@ -927,9 +961,9 @@ describe("shop & items", () => {
     expect(res.pokemon.hp).toBe(res.pokemon.maxHp);
   });
 
-  it("pickupGroundItem respects weights (first weight => berry)", () => {
+  it("pickupGroundItem respects weights (first weight => berry, tail => egg)", () => {
     expect(pickupGroundItem(() => 0)).toBe("berry");
-    expect(pickupGroundItem(() => 0.999)).toBe("potion");
+    expect(pickupGroundItem(() => 0.999)).toBe("egg");
   });
 });
 
@@ -938,7 +972,7 @@ describe("shop & items", () => {
 // ---------------------------------------------------------------------------
 
 describe("pokémon center & easter egg", () => {
-  it("easterEggUnlocked requires all 6 badges, the full dex and a Rocket win", () => {
+  it("easterEggUnlocked requires all 8 badges, the full dex and a Rocket win", () => {
     const base = createSave("bulbasaur");
     expect(easterEggUnlocked(base)).toBe(false); // fresh save
     const fullDex = markPokedex(base.pokedex, "bulbasaur", "seen");
@@ -948,7 +982,7 @@ describe("pokémon center & easter egg", () => {
     const withDex = normalizeSave({
       ...base,
       pokedex: dex,
-      badges: ["a", "b", "c", "d", "e", "f"],
+      badges: ["a", "b", "c", "d", "e", "f", "g", "h"],
       rocketsDefeated: 1,
     });
     expect(easterEggUnlocked(withDex)).toBe(true);
@@ -1392,6 +1426,70 @@ describe("codex: milestones and rarity", () => {
     expect(dexRarity(255)).toBe("common");
     expect(dexRarity(190)).toBe("uncommon");
     expect(dexRarity(60)).toBe("rare");
-    expect(dexRarity(3)).toBe("mythic");
+    
+expect(dexRarity(3)).toBe("mythic");
   });
 });
+
+// ---------------------------------------------------------------------------
+// v1.8.0 — eggs, legendaries, and the configured-move learnset
+// ---------------------------------------------------------------------------
+
+describe("v1.8.0 eggs & legendaries", () => {
+  it("randomEgg draws from the egg pool with a tuned incubation window", () => {
+    const egg = randomEgg(() => 0);
+    const speciesIds = EGG_POOL.map(([id]) => id);
+    expect(speciesIds).toContain(egg.speciesId);
+    expect(egg.needed).toBeGreaterThanOrEqual(TUNING.eggStepsMin);
+    expect(egg.needed).toBeLessThanOrEqual(TUNING.eggStepsMax);
+    expect(egg.steps).toBe(egg.needed);
+    const again = randomEgg(() => 0.99);
+    expect(again.speciesId.length).toBeGreaterThan(0);
+    expect(again.needed).toBeGreaterThanOrEqual(TUNING.eggStepsMin);
+  });
+
+  it("advanceEggs decrements steps and hatches at zero", () => {
+    // steps are decremented first; an egg hits 0 remaining → hatches
+    const eggs = [
+      { speciesId: "clefairy", steps: 4, needed: 4 },
+      { speciesId: "snorlax", steps: 2, needed: 2 },
+    ];
+    const after1 = advanceEggs(eggs);
+    expect(after1.hatched).toEqual([]);
+    expect(after1.eggs[0].steps).toBe(3);
+    expect(after1.eggs[1].steps).toBe(1);
+    const after2 = advanceEggs(after1.eggs);
+    expect(after2.hatched).toHaveLength(1);
+    expect(after2.hatched[0].speciesId).toBe("snorlax");
+    expect(after2.eggs).toHaveLength(1);
+    expect(after2.eggs[0].speciesId).toBe("clefairy");
+    expect(advanceEggs([]).hatched).toEqual([]);
+    expect(advanceEggs([{ speciesId: "abra", steps: 1, needed: 1 }]).hatched[0].speciesId).toBe("abra");
+  });
+
+  it("learnsetFor serves starters and wild species; configured moves win in battle", () => {
+    const bulba = learnsetFor(mon("bulbasaur", 5));
+    expect(bulba.some((m) => m.id === "vine-whip")).toBe(true);
+    const pidgey = learnsetFor(mon("pidgey", 5));
+    expect(pidgey.length).toBeGreaterThanOrEqual(3);
+    expect(pidgey.every((m) => MOVES[m.id])).toBe(true);
+    // learnsetFor is the species learnset (ignores the moves field)…
+    const withMoves = learnsetFor({ ...mon("pidgey", 5), moves: ["thunderbolt"] });
+    expect(withMoves.some((m) => m.id === "thunderbolt")).toBe(false);
+    // …but leaderMovesFor applies the player's 2 configured moves in battle
+    const configured = leaderMovesFor({ ...mon("pidgey", 5), moves: ["thunderbolt"] });
+    expect(configured.map((m) => m.id)).toEqual(["thunderbolt"]);
+  });
+
+  it("buildLegendaryEncounter spawns a boss from the four Kanto legends", () => {
+    const enc = buildLegendaryEncounter(12, lcg(3));
+    expect(enc.kind).toBe("legendary");
+    expect(enc.isBoss).toBe(true);
+    expect(LEGENDS).toContain(enc.speciesId);
+    expect(enc.level).toBeGreaterThanOrEqual(12);
+    expect(enc.level).toBeLessThanOrEqual(TUNING.maxLevel);
+    expect(enc.hpScale).toBe(1.7);
+    expect(enc.atkScale).toBe(1.45);
+  });
+});
+

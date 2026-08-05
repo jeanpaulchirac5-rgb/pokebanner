@@ -9,11 +9,14 @@ import {
   CENTER_SERVICES,
   CHAMPIONS,
   DEX_MILESTONES,
+  EGG_POOL,
   EVOLUTIONS,
   GROUND_ITEM_WEIGHTS,
   ITEMS,
   KANTO_151,
+  LEGENDS,
   MARKET_TUNING,
+  MOVES,
   ROCKET_POOL,
   SPECIES,
   TUNING,
@@ -26,6 +29,7 @@ import type {
   BattleState,
   CenterServiceId,
   DexRarity,
+  Egg,
   Encounter,
   EncounterKind,
   Inventory,
@@ -465,11 +469,26 @@ export function doBattleTick(state: BattleState, rng: Rng): BattleState {
   return next;
 }
 
-export function leaderMovesFor(leader: Pokemon): MoveDef[] {
-  if (EVOLUTIONS_STARTER[leader.speciesId] || STARTERS.includes(leader.speciesId)) {
-    return starterMovesFor(leader.speciesId);
+/**
+ * The full battle learnset for a Pokémon (v1.8.0): the species' default pool
+ * regardless of any configured moves. Used by the move-configuration UI to
+ * offer the player their pick of 2.
+ */
+export function learnsetFor(pokemon: Pokemon): MoveDef[] {
+  if (EVOLUTIONS_STARTER[pokemon.speciesId] || STARTERS.includes(pokemon.speciesId)) {
+    return starterMovesFor(pokemon.speciesId);
   }
-  return defaultMovesFor(leader.speciesId);
+  return defaultMovesFor(pokemon.speciesId);
+}
+
+export function leaderMovesFor(leader: Pokemon): MoveDef[] {
+  // v1.8.0: player-configured moves (1–2 ids from the learnset) override the
+  // species default — the configured set IS the battle kit.
+  const configured = (leader.moves ?? [])
+    .map((id) => MOVES[id])
+    .filter((m): m is MoveDef => Boolean(m));
+  if (configured.length > 0) return configured.slice(0, 2);
+  return learnsetFor(leader);
 }
 
 export function enemyMovesFor(enemy: Pokemon, championId?: string): MoveDef[] {
@@ -723,6 +742,34 @@ export function biomeIndexForSteps(steps: number): number {
 }
 
 /**
+ * Active biome index for a save (v1.8.0): a player-chosen biome pins the
+ * scenery; "auto" (default) keeps the classic every-500-steps rotation.
+ */
+export function biomeIndexForSave(save: Pick<SaveData, "biome" | "steps">): number {
+  const chosen = BIOMES.findIndex((b) => b.id === save.biome);
+  if (chosen >= 0) return chosen;
+  return biomeIndexForSteps(save.steps);
+}
+
+/**
+ * Legendary Boss encounter (v1.8.0). Spawned by Eclipse / Aurora weather
+ * events: one of the four Kanto legends, boss-scaled, a few levels above the
+ * leader. Rewards come from computeVictoryRewards' "legendary" branch.
+ */
+export function buildLegendaryEncounter(leaderLevel: number, rng: Rng): Encounter {
+  const speciesId = pickFrom(rng, LEGENDS);
+  return {
+    kind: "legendary",
+    speciesId,
+    level: Math.min(TUNING.maxLevel, leaderLevel + 4 + Math.floor(rng() * 3)),
+    shiny: false,
+    isBoss: true,
+    hpScale: 1.7,
+    atkScale: 1.45,
+  };
+}
+
+/**
  * Rolls the next wild-encounter delay in milliseconds, uniformly inside the
  * tuned 5–20s window. Pure + rng-injected so the randomness is testable.
  */
@@ -816,6 +863,11 @@ export function computeVictoryRewards(encounter: Encounter, rng: Rng): WinReward
     moneyGain = TUNING.moneyPerChampion;
     const champ = CHAMPIONS.find((c) => c.id === encounter.championId);
     badgeAwarded = champ ? champ.badge : null;
+  } else if (encounter.kind === "legendary") {
+    // Legendary Bosses pay a big flat purse, 2× XP, and often a Great Ball.
+    xpGain = Math.floor(xpGain * TUNING.legendaryXpMult);
+    moneyGain = TUNING.moneyPerLegendary;
+    if (rng() < 0.5) itemAwarded = "greatball";
   }
   return { xpGain, moneyGain, badgeAwarded, itemAwarded };
 }
@@ -896,6 +948,33 @@ export function pickupGroundItem(rng: Rng): string {
   return pickWeighted(rng, GROUND_ITEM_WEIGHTS);
 }
 
+/**
+ * Builds a fresh incubating egg (v1.8.0) from the egg species pool with a
+ * random incubation window inside the tuned 300–600 step range.
+ */
+export function randomEgg(rng: Rng): Egg {
+  // pickWeighted returns the picked value itself (the species id string).
+  const speciesId = pickWeighted(rng, EGG_POOL);
+  const needed =
+    TUNING.eggStepsMin + Math.floor(rng() * (TUNING.eggStepsMax - TUNING.eggStepsMin + 1));
+  return { speciesId, steps: needed, needed };
+}
+
+/**
+ * Advances every egg by one walking step. Eggs that reach 0 steps hatch and
+ * are returned (and removed). Pure — the caller decides what hatching yields.
+ */
+export function advanceEggs(eggs: Egg[]): { eggs: Egg[]; hatched: Egg[] } {
+  const hatched: Egg[] = [];
+  const remaining: Egg[] = [];
+  for (const egg of eggs) {
+    const next = { ...egg, steps: Math.max(0, egg.steps - 1) };
+    if (next.steps <= 0) hatched.push(egg);
+    else remaining.push(next);
+  }
+  return { eggs: remaining, hatched };
+}
+
 // ---------------------------------------------------------------------------
 // Pokémon Center & marketplace (pure economy helpers)
 // ---------------------------------------------------------------------------
@@ -907,7 +986,8 @@ export function pickupGroundItem(rng: Rng): string {
  */
 export function easterEggUnlocked(save: SaveData): boolean {
   const { seen } = pokedexCounts(save.pokedex);
-  return save.badges.length >= 6 && seen >= dexSize() && save.rocketsDefeated >= 1;
+  // v1.8.0: the Arena now has 8 badge-earning champions — earn them all.
+  return save.badges.length >= CHAMPIONS.length && seen >= dexSize() && save.rocketsDefeated >= 1;
 }
 
 /**
@@ -1029,9 +1109,25 @@ export function weatherFor(
   let s = ((cycle * 2654435761) >>> 0) || 1;
   s = (s * 1664525 + 1013904223) >>> 0;
   const roll = s / 0xffffffff;
+  // v1.8.0: weights now span six kinds — clear .44 · rain .22 · snow .12 ·
+  // starry .10 · eclipse .06 · aurora .06. Starry & Aurora are night-only
+  // (they resolve to clear during the day); Eclipse is a day-dimming event
+  // and stays valid any phase.
   const kind: WeatherKind =
-    roll < 0.5 ? "clear" : roll < 0.75 ? "rain" : roll < 0.9 ? "snow" : "starry";
-  return kind === "starry" && phase !== "night" ? "clear" : kind;
+    roll < 0.44
+      ? "clear"
+      : roll < 0.66
+        ? "rain"
+        : roll < 0.78
+          ? "snow"
+          : roll < 0.88
+            ? "starry"
+            : roll < 0.94
+              ? "eclipse"
+              : "aurora";
+  if (kind === "starry" && phase !== "night") return "clear";
+  if (kind === "aurora" && phase !== "night") return "clear";
+  return kind;
 }
 
 /** Encounter-frequency multiplier per weather (rain = wild Pokémon come out). */
@@ -1151,6 +1247,13 @@ export function createSave(starterSpeciesId: string): SaveData {
     bgmEnabled: true,
     dustTrail: true,
     language: "en",
+    biome: "auto",
+    eggs: [],
+    moneyEarned: 0,
+    captures: 0,
+    battlesLost: 0,
+    eggsHatched: 0,
+    legendariesDefeated: 0,
   };
 }
 
@@ -1197,6 +1300,20 @@ export function normalizeSave(raw: unknown): SaveData {
     // Old saves predate the toggle: default footstep dust ON.
     dustTrail: r.dustTrail !== false,
     language: (r.language as Language) ?? "en",
+    biome: typeof r.biome === "string" ? r.biome : "auto",
+    eggs: Array.isArray(r.eggs)
+      ? (r.eggs as Egg[]).map((e) => ({
+          speciesId: String(e.speciesId ?? "clefairy"),
+          steps: Math.max(0, Math.floor(Number(e.steps) || 0)),
+          needed: Math.max(1, Math.floor(Number(e.needed) || 1)),
+          shiny: Boolean(e.shiny),
+        }))
+      : [],
+    moneyEarned: Math.max(0, Math.floor(Number(r.moneyEarned) || 0)),
+    captures: Math.max(0, Math.floor(Number(r.captures) || 0)),
+    battlesLost: Math.max(0, Math.floor(Number(r.battlesLost) || 0)),
+    eggsHatched: Math.max(0, Math.floor(Number(r.eggsHatched) || 0)),
+    legendariesDefeated: Math.max(0, Math.floor(Number(r.legendariesDefeated) || 0)),
   };
 }
 
@@ -1217,6 +1334,11 @@ export function normalizePokemon(p: Pokemon): Pokemon {
     statusTurns: Number(p.statusTurns) || 0,
     shiny: Boolean(p.shiny),
     nickname: p.nickname,
+    moves: Array.isArray(p.moves)
+      ? (p.moves as unknown[])
+          .filter((m): m is string => typeof m === "string" && Boolean(MOVES[m]))
+          .slice(0, 2)
+      : undefined,
   };
 }
 

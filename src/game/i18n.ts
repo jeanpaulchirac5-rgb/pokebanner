@@ -67,6 +67,46 @@ const UI: Dict = {
   "snow-start": { en: "Snow started falling!", fr: "Il se met à neiger !", de: "Es beginnt zu schneien!", es: "¡Empieza a nevar!", ja: "雪が降り出した！" },
   "starry-start": { en: "A starry night falls over the route…", fr: "Une nuit étoilée tombe sur la route…", de: "Eine Sternennacht senkt sich über die Route…", es: "Una noche estrellada cae sobre la ruta…", ja: "星降る夜が道に広がる…" },
   "clear-sky": { en: "The sky clears up.", fr: "Le ciel se dégage.", de: "Der Himmel klart auf.", es: "El cielo se despeja.", ja: "空が晴れ渡った。" },
+  // rare weather events (v1.8.0) — eclipse & aurora lure Legendary Bosses
+  "eclipse-start": { en: "A solar eclipse darkens the sky!", fr: "Une éclipse solaire assombrit le ciel !", de: "Eine Sonnenfinsternis verdunkelt den Himmel!", es: "¡Un eclipse solar oscurece el cielo!", ja: "日食が空を暗くした！" },
+  "aurora-start": { en: "An aurora dances across the night sky!", fr: "Une aurore boréale danse dans le ciel nocturne !", de: "Eine Aurora tanzt über den Nachthimmel!", es: "¡Una aurora baila en el cielo nocturno!", ja: "オーロラが夜空に舞う！" },
+  "legendary-appears": { en: "{mon} descends from the sky!!", fr: "{mon} descend du ciel !!", de: "{mon} steigt vom Himmel herab!!", es: "¡¡{mon} desciende del cielo!!", ja: "{mon} が空から舞い降りた！！" },
+  "legendary-tag": { en: "LEGENDARY", fr: "LÉGENDAIRE", de: "LEGENDE", es: "LEGENDARIO", ja: "伝説" },
+  // egg system (v1.8.0)
+  "egg-found": { en: "A mysterious egg appeared!", fr: "Un œuf mystérieux apparaît !", de: "Ein mysteriöses Ei erscheint!", es: "¡Ha aparecido un huevo misterioso!", ja: "ふしぎなタマゴを見つけた！" },
+  "egg-hatched": { en: "{mon} hatched from an egg!", fr: "{mon} sort de l'œuf !", de: "{mon} schlüpft aus dem Ei!", es: "¡{mon} salió de un huevo!", ja: "{mon} がタマゴから孵った！" },
+  "eggs-title": { en: "Eggs", fr: "Œufs", de: "Eier", es: "Huevos", ja: "タマゴ" },
+  "eggs-empty": { en: "No eggs yet. Find one in the grass or buy from the merchant!", fr: "Pas encore d'œufs. Cherchez dans l'herbe ou achetez-en au marchand !", de: "Noch keine Eier. Suche im Gras oder kaufe beim Händler!", es: "Aún no hay huevos. ¡Búscalos en la hierba o cómpralos al mercader!", ja: "タマゴはまだない。草むらで探すか、商人から買おう！" },
+  "eggs-hint": { en: "Walk to hatch.", fr: "Marche pour faire éclore.", de: "Laufe, um es schlüpfen zu lassen.", es: "Camina para eclosionar.", ja: "歩くと孵る。" },
+  // career stats & badges (v1.8.0)
+  "career-title": { en: "Career", fr: "Carrière", de: "Karriere", es: "Carrera", ja: "キャリア" },
+  "career-badges": { en: "Kanto Badges", fr: "Badges de Kanto", de: "Kanto-Orden", es: "Medallas de Kanto", ja: "カントーのバッジ" },
+  "career-stats": { en: "Lifetime Stats", fr: "Statistiques de carrière", de: "Lebenszeit-Statistiken", es: "Estadísticas de por vida", ja: "通算記録" },
+  "career-tag": { en: "Your whole trainer journey: badges, battles and records.", fr: "Tout votre parcours de dresseur : badges, combats et records.", de: "Deine ganze Trainer-Reise: Orden, Kämpfe und Rekorde.", es: "Todo tu viaje de entrenador: medallas, combates y récords.", ja: "トレーナーの旅のすべて：バッジ、バトル、記録。" },
+  "career-money": { en: "₽ Earned", fr: "₽ Gagnés", de: "₽ Verdient", es: "₽ Ganados", ja: "獲得₽" },
+  "career-wins": { en: "Wins", fr: "Victoires", de: "Siege", es: "Victorias", ja: "勝利" },
+  "career-losses": { en: "Losses", fr: "Défaites", de: "Niederlagen", es: "Derrotas", ja: "敗北" },
+  "career-captures": { en: "Captures", fr: "Captures", de: "Fänge", es: "Capturas", ja: "捕獲" },
+  "career-champions": { en: "Champions", fr: "Champions", de: "Champions", es: "Campeones", ja: "ジムリーダー" },
+  "career-rockets": { en: "Rockets", fr: "Rocket", de: "Rockets", es: "Rocket", ja: "ロケット団" },
+  "career-legendaries": { en: "Legendaries", fr: "Légendaires", de: "Legendäre", es: "Legendarios", ja: "伝説" },
+  "career-shinies": { en: "Shinies", fr: "Chromatiques", de: "Schillernde", es: "Variocolores", ja: "色違い" },
+  "career-eggs": { en: "Eggs Hatched", fr: "Œufs éclos", de: "Geschlüpfte Eier", es: "Huevos eclosionados", ja: "孵った数" },
+  "career-steps": { en: "Steps", fr: "Pas", de: "Schritte", es: "Pasos", ja: "歩数" },
+  "career-badge-bonus": { en: "Badge bonus", fr: "Bonus de badge", de: "Orden-Bonus", es: "Bono de medalla", ja: "バッジボーナス" },
+  "career-damage": { en: "damage", fr: "dégâts", de: "Schaden", es: "daño", ja: "ダメージ" },
+  "career-next": { en: "Next milestone", fr: "Prochain objectif", de: "Nächstes Ziel", es: "Próximo hito", ja: "次の目標" },
+  "career-next-desc": { en: "Earn all 8 badges for the full +40% damage bonus — then hunt the Legendary Bosses during Eclipse & Aurora events.", fr: "Obtenez les 8 badges pour le bonus de +40% de dégâts — puis chassez les Boss Légendaires lors des éclipses et aurores.", de: "Sammle alle 8 Orden für +40% Schaden — dann jage die Legendären Bosse bei Sonnenfinsternis & Aurora.", es: "Consigue las 8 medallas para el +40% de daño — ¡luego caza a los Jefes Legendarios durante eclipses y auroras!", ja: "バッジを8個集めてダメージ+40%を獲得。日食・オーロラの伝説ボスを狩ろう！" },
+  "eggs-count": { en: "incubating", fr: "en incubation", de: "brüten", es: "incubando", ja: "温め中" },
+  "eggs-tag": { en: "Every step you walk hatches them a little more.", fr: "Chaque pas que vous faites les fait éclore un peu plus.", de: "Jeder Schritt, den du gehst, bringt sie dem Schlüpfen näher.", es: "Cada paso que das los hace eclosionar un poco más.", ja: "歩くほどタマゴは孵りに近づく。" },
+  "eggs-steps": { en: "steps", fr: "pas", de: "Schritte", es: "pasos", ja: "歩" },
+  "eggs-hatched": { en: "Hatched", fr: "Éclos", de: "Geschlüpft", es: "Eclosionados", ja: "孵った" },
+  // biome picker (v1.8.0)
+  "biome-title": { en: "Biome", fr: "Biome", de: "Biom", es: "Bioma", ja: "エリア" },
+  "biome-auto": { en: "Auto (rotates every 500 steps)", fr: "Auto (alterne toutes les 500 pas)", de: "Auto (wechselt alle 500 Schritte)", es: "Auto (rota cada 500 pasos)", ja: "オート（500歩ごと）" },
+  // move configuration (v1.8.0)
+  "moves-title": { en: "Moves", fr: "Capacités", de: "Attacken", es: "Movimientos", ja: "わざ" },
+  "moves-hint": { en: "Pick 2 moves for battle.", fr: "Choisis 2 capacités de combat.", de: "Wähle 2 Attacken für den Kampf.", es: "Elige 2 movimientos para el combate.", ja: "戦闘用のわざを2つ選ぶ。" },
   "badge-earned": { en: "{badge} earned! +5% team damage", fr: "{badge} obtenu ! +5% dégâts d'équipe", de: "{badge} erhalten! +5% Team-Schaden", es: "¡{badge} conseguida! +5% daño de equipo", ja: "{badge} を獲得！ チームのダメージ+5%" },
   "team-full": { en: "Team is full (6 max)!", fr: "Équipe complète (6 max) !", de: "Team ist voll (max. 6)!", es: "¡Equipo lleno (máx. 6)!", ja: "チームがいっぱいだ（最大6匹）！" },
   "leads": { en: "{mon} leads the walk!", fr: "{mon} mène la marche !", de: "{mon} führt den Weg an!", es: "¡{mon} lidera el paseo!", ja: "{mon} が先頭を歩く！" },
@@ -390,19 +430,19 @@ export function localizedMoveName(moveId: string, lang: Language): string {
 const ITEMS_FR: Record<string, string> = {
   pokeball: "Poké Ball", greatball: "Super Ball", berry: "Baie Oran",
   sitrus: "Baie Sitrus", potion: "Potion", hyperpotion: "Hyper Potion",
-  revive: "Rappel",
+  revive: "Rappel", egg: "Œuf Mystère",
 };
 
 const ITEMS_DE: Record<string, string> = {
   pokeball: "Pokéball", greatball: "Superball", berry: "Oranbeere",
   sitrus: "Sitrusbeere", potion: "Trank", hyperpotion: "Hypertrank",
-  revive: "Beleber",
+  revive: "Beleber", egg: "Mysteriöses Ei",
 };
 
 const ITEMS_JA: Record<string, string> = {
   pokeball: "モンスターボール", greatball: "スーパーボール", berry: "オレンのみ",
   sitrus: "オボンのみ", potion: "キズぐすり", hyperpotion: "ハイパーきずぐすり",
-  revive: "げんきのかけら",
+  revive: "げんきのかけら", egg: "ふしぎなタマゴ",
 };
 
 /** Localized item display name (unknown ids fall back to the canonical name). */
@@ -423,17 +463,20 @@ export function localizedItemName(itemId: string, lang: Language): string {
 
 const CHAMPS_FR: Record<string, string> = {
   brock: "Pierre", misty: "Ondine", surge: "Major Bob",
-  erika: "Érika", koga: "Koga", giovanni: "Giovanni",
+  erika: "Érika", koga: "Koga", sabrina: "Morgane", blaine: "Auguste",
+  giovanni: "Giovanni",
 };
 
 const CHAMPS_DE: Record<string, string> = {
   brock: "Rocko", misty: "Misty", surge: "Major Bob",
-  erika: "Erika", koga: "Koga", giovanni: "Giovanni",
+  erika: "Erika", koga: "Koga", sabrina: "Sabrina", blaine: "Pyro",
+  giovanni: "Giovanni",
 };
 
 const CHAMPS_JA: Record<string, string> = {
   brock: "タケシ", misty: "カスミ", surge: "マチス",
-  erika: "エリカ", koga: "キョウ", giovanni: "サカキ",
+  erika: "エリカ", koga: "キョウ", sabrina: "ナツメ", blaine: "カツラ",
+  giovanni: "サカキ",
 };
 
 /** Localized gym-leader display name (unknown ids fall back to the canonical name). */

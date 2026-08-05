@@ -345,7 +345,7 @@ describe("Pokémon Center & marketplace in the loop", () => {
     save = normalizeSave({
       ...save,
       pokedex: dex,
-      badges: ["a", "b", "c", "d", "e", "f"],
+      badges: ["a", "b", "c", "d", "e", "f", "g", "h"],
       rocketsDefeated: 1,
     });
     expect(easterEggUnlocked(save)).toBe(true);
