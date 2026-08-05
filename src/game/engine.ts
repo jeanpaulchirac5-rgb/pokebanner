@@ -11,14 +11,19 @@ import {
   DEX_MILESTONES,
   EGG_POOL,
   EVOLUTIONS,
+  FRIENDSHIP_EVOLUTIONS,
   GROUND_ITEM_WEIGHTS,
   ITEMS,
   KANTO_151,
+  LEAGUE,
   LEGENDS,
   MARKET_TUNING,
   MOVES,
+  RIVAL_POOL,
   ROCKET_POOL,
   SPECIES,
+  TRAINER_NAMES,
+  TRAINER_POOL,
   TUNING,
   TYPE_CHART,
   defaultMovesFor,
@@ -34,6 +39,7 @@ import type {
   EncounterKind,
   Inventory,
   Language,
+  LeagueMemberDef,
   MoveDef,
   Pokemon,
   Pokedex,
@@ -102,6 +108,7 @@ export function makePokemon(
     shiny?: boolean;
     nickname?: string;
     status?: Pokemon["status"];
+    happiness?: number;
   } = {},
 ): Pokemon {
   const stats = statsFor(speciesId, level);
@@ -122,6 +129,7 @@ export function makePokemon(
     statusTurns: opts.status === "sleep" ? 2 : 0,
     shiny: opts.shiny ?? false,
     nickname: opts.nickname,
+    happiness: opts.happiness ?? TUNING.happinessStart,
   };
 }
 
@@ -150,6 +158,8 @@ export function TYPE_CHART_MULT(moveType: TypeName, defenderType: TypeName): num
 
 export interface RollDamageOpts {
   badgeMult?: number;
+  /** Friendship damage multiplier for the attacker (v1.9.0). */
+  happyMult?: number;
 }
 
 /**
@@ -172,13 +182,14 @@ export function rollDamage(
   const stab = getSpecies(attacker.speciesId).types.includes(move.type);
   const stabMult = stab ? TUNING.stabMult : 1;
   const badgeMult = opts.badgeMult ?? 1;
+  const happyMult = opts.happyMult ?? 1;
   const level = attacker.level;
   const a = Math.max(1, attacker.atk);
   const d = Math.max(1, defender.def);
   const base =
     (Math.floor((2 * level) / 5 + 2) * move.power * a) / d / 50 + 2;
   const variance = 0.85 + rng() * 0.15;
-  let damage = Math.floor(base * variance * mult * stabMult * (crit ? 1.5 : 1) * badgeMult);
+  let damage = Math.floor(base * variance * mult * stabMult * (crit ? 1.5 : 1) * badgeMult * happyMult);
   if (damage < 1) damage = TUNING.minDamage;
   return { damage, crit, hit: true, mult, stab };
 }
@@ -261,6 +272,7 @@ export function executeTurn(
   moves: MoveDef[],
   rng: Rng,
   badgeMult = 1,
+  happyMult = 1,
 ): TurnOutcome {
   const messages: string[] = [];
   let a = attacker;
@@ -373,6 +385,7 @@ export function executeTurn(
 
   const { damage, crit, hit, mult, stab } = rollDamage(a, defender, move, rng, {
     badgeMult,
+    happyMult,
   });
   let drained = 0;
   if (hit && damage > 0) {
@@ -451,7 +464,14 @@ export function doBattleTick(state: BattleState, rng: Rng): BattleState {
   let enemy = state.enemy;
   const log: string[] = [];
   if (leader.hp > 0) {
-    const t = executeTurn(leader, enemy, leaderMovesFor(leader), rng, badgeMult);
+    const t = executeTurn(
+      leader,
+      enemy,
+      leaderMovesFor(leader),
+      rng,
+      badgeMult,
+      state.happyMult ?? 1,
+    );
     leader = t.attacker;
     enemy = t.defender;
     log.push(...t.messages);
@@ -602,6 +622,58 @@ export function checkEvolution(
   return null;
 }
 
+// ---------------------------------------------------------------------------
+// Happiness / friendship (v1.9.0)
+// ---------------------------------------------------------------------------
+
+export type HappinessTier = "neutral" | "friendly" | "happy" | "best";
+
+/** Effective happiness for a Pokémon — old saves default to the start value. */
+export function happinessOf(pokemon: Pokemon | undefined): number {
+  return Math.min(255, Math.max(0, Math.floor(pokemon?.happiness ?? TUNING.happinessStart)));
+}
+
+/** Clamp a happiness delta into the 0–255 range. */
+export function addHappiness(current: number | undefined, delta: number): number {
+  return Math.min(255, Math.max(0, Math.floor(current ?? TUNING.happinessStart) + delta));
+}
+
+/** The friendship tier a rating falls into (drives UI + bonuses). */
+export function happinessTier(happiness: number): HappinessTier {
+  if (happiness >= TUNING.happinessBest) return "best";
+  if (happiness >= TUNING.happinessHappy) return "happy";
+  if (happiness >= TUNING.happinessFriendly) return "friendly";
+  return "neutral";
+}
+
+/** XP multiplier from friendship: +5% friendly, +10% best friends. */
+export function happinessXpBonus(happiness: number): number {
+  if (happiness >= TUNING.happinessBest) return 1 + TUNING.happinessXpBest;
+  if (happiness >= TUNING.happinessFriendly) return 1 + TUNING.happinessXpFriendly;
+  return 1;
+}
+
+/** Damage multiplier from friendship: +5% happy, +10% best friends. */
+export function happinessDamageBonus(happiness: number): number {
+  if (happiness >= TUNING.happinessBest) return 1 + TUNING.happinessDmgBest;
+  if (happiness >= TUNING.happinessHappy) return 1 + TUNING.happinessDmgHappy;
+  return 1;
+}
+
+/**
+ * Friendship evolutions (v1.9.0): the bond (happiness) replaces the level
+ * requirement. Same shape as checkEvolution so the banner handles both flows.
+ */
+export function checkFriendshipEvolution(
+  pokemon: Pokemon,
+): { evolved: true; newSpeciesId: string; oldSpeciesId: string } | null {
+  const evo = FRIENDSHIP_EVOLUTIONS[pokemon.speciesId];
+  if (evo && happinessOf(pokemon) >= evo.atHappiness) {
+    return { evolved: true, newSpeciesId: evo.to, oldSpeciesId: pokemon.speciesId };
+  }
+  return null;
+}
+
 /**
  * Adds XP (after the passive Pokédex bonus is applied) and processes level-ups
  * and evolution. Returns the resulting pokémon plus flags for UI sequences.
@@ -652,7 +724,10 @@ export function expShare(
   const evolved: number[] = [];
   const out = team.map((m, i) => {
     if (m.hp <= 0) return m;
-    const share = i === 0 ? xpGain : xpGain * TUNING.expShareBench;
+    // v1.9.0: friendship grants a personal XP bonus on top of the shared one.
+    const share =
+      (i === 0 ? xpGain : xpGain * TUNING.expShareBench) *
+      happinessXpBonus(happinessOf(m));
     const res = applyXpAndLevels(m, share, xpBonus);
     if (res.leveledUp) leveled.push(i);
     if (res.evolved) evolved.push(i);
@@ -713,14 +788,42 @@ export interface EncounterOpts {
  */
 export function buildEncounter(opts: EncounterOpts): Encounter {
   const { poolIds, levelRange, night, rng } = opts;
-  if (opts.allowRocket && rng() < TUNING.rocketChance) {
-    const speciesId = pickFrom(rng, ROCKET_POOL);
-    return {
-      kind: "rocket",
-      speciesId,
-      level: levelRange[1] + 1,
-      shiny: false,
-    };
+  // v1.9.0: one combined roll decides Rocket / Trainer / Rival / wild, so the
+  // RNG stream stays byte-identical to v1.8.0 when allowRocket is true (the
+  // 5% rocket threshold and everything below it is unchanged). Trainers and
+  // the Rival are blocked by allowRocket: false exactly like Rockets were.
+  if (opts.allowRocket) {
+    const roll = rng();
+    if (roll < TUNING.rocketChance) {
+      const speciesId = pickFrom(rng, ROCKET_POOL);
+      return {
+        kind: "rocket",
+        speciesId,
+        level: levelRange[1] + 1,
+        shiny: false,
+      };
+    }
+    if (roll < TUNING.rocketChance + TUNING.trainerChance) {
+      const trainerName = pickFrom(rng, TRAINER_NAMES);
+      const speciesId = pickFrom(rng, TRAINER_POOL);
+      const level = levelRange[0] + Math.floor(rng() * (levelRange[1] - levelRange[0] + 1));
+      return {
+        kind: "trainer",
+        speciesId,
+        level: Math.min(TUNING.maxLevel, level),
+        shiny: false,
+        trainerName,
+      };
+    }
+    if (roll < TUNING.rocketChance + TUNING.trainerChance + TUNING.rivalChance) {
+      const speciesId = pickFrom(rng, RIVAL_POOL);
+      return {
+        kind: "rival",
+        speciesId,
+        level: Math.min(TUNING.maxLevel, levelRange[1] + 2),
+        shiny: false,
+      };
+    }
   }
   const filtered = poolIds.filter((id) => {
     const def = getSpecies(id);
@@ -802,6 +905,60 @@ export function makeWildEnemy(save: SaveData, encounter: Encounter): Pokemon {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Indigo League (v1.9.0) — the Elite Four + League Champion gauntlet
+// ---------------------------------------------------------------------------
+
+/**
+ * Builds the next League encounter: the member at `index` (rotating through
+ * the five — four Elite Four + the Champion). Scales progressively: each
+ * member sits a few levels above the leader, boss-scaled like gym leaders.
+ */
+export function setupLeagueMember(leaderLevel: number, index: number): Encounter {
+  const member = LEAGUE[index % LEAGUE.length];
+  const step = index % LEAGUE.length;
+  return {
+    kind: "elite",
+    speciesId: member.speciesId,
+    level: Math.min(TUNING.maxLevel, leaderLevel + 4 + step),
+    shiny: false,
+    isBoss: true,
+    championId: member.id,
+    hpScale: 2.0,
+    atkScale: 1.6,
+  };
+}
+
+/** True when a League encounter is the final Champion (Blue). */
+export function isLeagueChampionMember(memberId: string | undefined): boolean {
+  if (!memberId) return false;
+  return LEAGUE.findIndex((m) => m.id === memberId) === LEAGUE.length - 1;
+}
+
+/**
+ * League-win bookkeeping: advances leagueIndex/leagueWins and crowns the
+ * player as League Champion on their first clear. Pure + unit-tested.
+ */
+export function leagueBookkeeping(
+  save: SaveData,
+  memberId: string | undefined,
+): { save: SaveData; memberName: string | null; champion: boolean } {
+  if (!memberId) return { save, memberName: null, champion: false };
+  const member = LEAGUE.find((m) => m.id === memberId);
+  if (!member) return { save, memberName: null, champion: false };
+  const champion = isLeagueChampionMember(memberId);
+  return {
+    save: {
+      ...save,
+      leagueIndex: save.leagueIndex + 1,
+      leagueWins: save.leagueWins + 1,
+      leagueChampion: save.leagueChampion || champion,
+    },
+    memberName: member.name,
+    champion,
+  };
+}
+
 /** Marks a species as seen (and caught when flag set). Pure + returns new dex. */
 export function markPokedex(
   pokedex: Pokedex,
@@ -868,6 +1025,21 @@ export function computeVictoryRewards(encounter: Encounter, rng: Rng): WinReward
     xpGain = Math.floor(xpGain * TUNING.legendaryXpMult);
     moneyGain = TUNING.moneyPerLegendary;
     if (rng() < 0.5) itemAwarded = "greatball";
+  } else if (encounter.kind === "trainer") {
+    // Route trainers (v1.9.0): a healthy purse and boosted XP.
+    xpGain = Math.floor(xpGain * TUNING.trainerXpMult);
+    moneyGain = TUNING.moneyPerTrainer;
+  } else if (encounter.kind === "rival") {
+    // The Rival (v1.9.0): a proper boss purse + a Great Ball sometimes.
+    xpGain = Math.floor(xpGain * TUNING.rivalXpMult);
+    moneyGain = TUNING.moneyPerRival;
+    if (rng() < 0.3) itemAwarded = "greatball";
+  } else if (encounter.kind === "elite") {
+    // Elite Four & League Champion (v1.9.0): the richest battles in the game.
+    xpGain = Math.floor(xpGain * TUNING.eliteXpMult);
+    moneyGain = isLeagueChampionMember(encounter.championId)
+      ? TUNING.moneyPerLeagueChampion
+      : TUNING.moneyPerElite;
   }
   return { xpGain, moneyGain, badgeAwarded, itemAwarded };
 }
@@ -1254,6 +1426,11 @@ export function createSave(starterSpeciesId: string): SaveData {
     battlesLost: 0,
     eggsHatched: 0,
     legendariesDefeated: 0,
+    leagueIndex: 0,
+    leagueWins: 0,
+    leagueChampion: false,
+    trainersDefeated: 0,
+    rivalDefeated: 0,
   };
 }
 
@@ -1314,6 +1491,11 @@ export function normalizeSave(raw: unknown): SaveData {
     battlesLost: Math.max(0, Math.floor(Number(r.battlesLost) || 0)),
     eggsHatched: Math.max(0, Math.floor(Number(r.eggsHatched) || 0)),
     legendariesDefeated: Math.max(0, Math.floor(Number(r.legendariesDefeated) || 0)),
+    leagueIndex: Math.max(0, Math.floor(Number(r.leagueIndex) || 0)),
+    leagueWins: Math.max(0, Math.floor(Number(r.leagueWins) || 0)),
+    leagueChampion: Boolean(r.leagueChampion),
+    trainersDefeated: Math.max(0, Math.floor(Number(r.trainersDefeated) || 0)),
+    rivalDefeated: Math.max(0, Math.floor(Number(r.rivalDefeated) || 0)),
   };
 }
 
@@ -1339,6 +1521,7 @@ export function normalizePokemon(p: Pokemon): Pokemon {
           .filter((m): m is string => typeof m === "string" && Boolean(MOVES[m]))
           .slice(0, 2)
       : undefined,
+    happiness: happinessOf(p),
   };
 }
 

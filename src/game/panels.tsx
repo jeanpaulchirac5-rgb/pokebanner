@@ -50,7 +50,7 @@ import type {
   Pokemon,
   SaveData,
 } from "./types";
-import { ArenaTab, CareerTab, CodexTab, EggsTab, NewsTab, SaveTab, SettingsTab, ShopTab } from "./panels-tabs";
+import { ArenaTab, CareerTab, CodexTab, EggsTab, FriendsTab, NewsTab, SaveTab, SettingsTab, ShopTab } from "./panels-tabs";
 
 export type PanelTab =
   | "items"
@@ -68,7 +68,8 @@ export type PanelTab =
   | "save"
   | "settings"
   | "career"
-  | "eggs";
+  | "eggs"
+  | "friends";
 
 export interface GamePanelsProps {
   save: SaveData;
@@ -84,6 +85,8 @@ export interface GamePanelsProps {
   onRemoveFromTeam: (teamIndex: number) => void;
   onViewDetails: (pcIndex: number) => void;
   onChallengeChampion: () => void;
+  /** v1.9.0: challenge the next Indigo League member (Elite Four + Champion). */
+  onChallengeLeague: () => void;
   onCenterService: (serviceId: CenterServiceId) => void;
   onSellPokemon: (pcIndex: number, price: number) => void;
   onBuyMarketMon: (mon: Pokemon, price: number) => void;
@@ -109,6 +112,7 @@ const TABS: { id: PanelTab; label: string }[] = [
   { id: "dex", label: "DEX" },
   { id: "career", label: "CAREER" },
   { id: "eggs", label: "EGGS" },
+  { id: "friends", label: "FRIENDS" },
   { id: "center", label: "CENTER" },
   { id: "market", label: "MARKET" },
   { id: "rank", label: "RANK" },
@@ -150,6 +154,7 @@ export function GamePanels(props: GamePanelsProps) {
       {tab === "dex" && <DexTab {...props} />}
       {tab === "career" && <CareerTab {...props} />}
       {tab === "eggs" && <EggsTab {...props} />}
+      {tab === "friends" && <FriendsTab {...props} />}
       {tab === "center" && <CenterTab {...props} />}
       {tab === "market" && <MarketTab {...props} />}
       {tab === "rank" && <RankTab {...props} />}

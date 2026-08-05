@@ -97,6 +97,7 @@ describe("coverage map integrity", () => {
       "sound",
       "i18n",
       "fx",
+      "v190",
     ];
     for (const suites of Object.values(COVERAGE_MAP)) {
       for (const s of suites) {

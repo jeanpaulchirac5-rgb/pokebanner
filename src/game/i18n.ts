@@ -9,6 +9,7 @@ import {
   CENTER_SERVICES,
   CHAMPIONS,
   ITEMS,
+  LEAGUE,
   MOVES,
   SPECIES,
   getDexMeta,
@@ -198,6 +199,39 @@ const UI: Dict = {
   "news-update-avail": { en: "Update available", fr: "Mise à jour disponible", de: "Update verfügbar", es: "Actualización disponible", ja: "更新があります" },
   "news-ahead": { en: "This build is ahead of the latest release", fr: "Cette version est plus récente que la dernière sortie", de: "Dieser Build ist neuer als die letzte Veröffentlichung", es: "Esta versión supera la última publicación", ja: "このビルドは最新リリースより新しい" },
   "news-diff-note": { en: "Installed builds update via differential patches (blockmaps) — only the changed bytes download. Portable users grab the new exe from GitHub.", fr: "Les versions installées se mettent à jour par patchs différentiels (blockmaps) — seuls les octets modifiés sont téléchargés. Les utilisateurs portables récupèrent le nouvel .exe sur GitHub.", de: "Installierte Builds aktualisieren per Differential-Patches (Blockmaps) — nur geänderte Bytes werden geladen. Portable-Nutzer laden die neue EXE von GitHub.", es: "Las versiones instaladas se actualizan con parches diferenciales (blockmaps): solo se descargan los bytes modificados. Los portátiles descargan el nuevo exe desde GitHub.", ja: "インストール版は差分パッチ（ブロックマップ）で更新され、変更分のみダウンロードされます。ポータブル版はGitHubから新しいexeを入手してください。" },
+  // Indigo League & Elite Four (v1.9.0)
+  "league-title": { en: "Indigo League", fr: "Ligue Indigo", de: "Indigo-Liga", es: "Liga Índigo", ja: "セキエイリーグ" },
+  "league-tag": { en: "The Elite Four await — the final test after all 8 badges.", fr: "Le Conseil des 4 vous attend — l'épreuve finale après les 8 badges.", de: "Die Top Vier warten — die letzte Prüfung nach allen 8 Orden.", es: "El Alto Mando te espera: la prueba final tras las 8 medallas.", ja: "四天王が待つ — 8個のバッジの先にある最終試練。" },
+  "league-locked": { en: "Earn all 8 badges to unlock the Indigo League!", fr: "Obtenez les 8 badges pour débloquer la Ligue Indigo !", de: "Sammle alle 8 Orden, um die Indigo-Liga freizuschalten!", es: "¡Consigue las 8 medallas para desbloquear la Liga Índigo!", ja: "バッジを8個集めてセキエイリーグを解禁しよう！" },
+  "league-reward": { en: "{money}₽ · 3× XP", fr: "{money}₽ · 3× XP", de: "{money}₽ · 3× EP", es: "{money}₽ · 3× XP", ja: "₽{money}・経験値3倍" },
+  "league-rematch": { en: "Rematch the League", fr: "Rejouer la Ligue", de: "Liga erneut bestreiten", es: "Revancha contra la Liga", ja: "リーグ再戦" },
+  "league-champion": { en: "You are the Pokémon League Champion!", fr: "Vous êtes le Champion de la Ligue Pokémon !", de: "Du bist der Pokémon-Liga-Champion!", es: "¡Eres el Campeón de la Liga Pokémon!", ja: "ポケモンリーグチャンピオンになった！" },
+  "league-wins": { en: "League wins", fr: "Victoires en Ligue", de: "Liga-Siege", es: "Victorias de la Liga", ja: "リーグ勝利" },
+  "league-title-earned": { en: "League Champion", fr: "Champion de la Ligue", de: "Liga-Champion", es: "Campeón de la Liga", ja: "リーグチャンピオン" },
+  "league-member": { en: "{mon} awaits...", fr: "{mon} vous attend…", de: "{mon} wartet…", es: "{mon} aguarda…", ja: "{mon} が待っている…" },
+  // route trainers & the rival (v1.9.0)
+  "trainer-appears": { en: "{mon} wants to battle!", fr: "{mon} veut se battre !", de: "{mon} will kämpfen!", es: "¡{mon} quiere combatir!", ja: "{mon} が勝負を仕掛けてきた！" },
+  "rival-appears": { en: "{mon} challenges you!", fr: "{mon} vous défie !", de: "{mon} fordert dich heraus!", es: "¡{mon} te desafía!", ja: "{mon} が挑戦してきた！" },
+  "no-capture": { en: "You can't catch a Trainer's Pokémon!", fr: "Impossible de capturer le Pokémon d'un dresseur !", de: "Du kannst das Pokémon eines Trainers nicht fangen!", es: "¡No puedes capturar el Pokémon de un entrenador!", ja: "トレーナーのポケモンは捕まえられない！" },
+  "league-evolve": { en: "Your bond deepens...", fr: "Votre lien se renforce…", de: "Eure Bindung wird stärker…", es: "Tu vínculo se fortalece…", ja: "きずなが深まる…" },
+  "career-trainers": { en: "Trainers", fr: "Dresseurs", de: "Trainer", es: "Entrenadores", ja: "トレーナー" },
+  "career-league": { en: "League", fr: "Ligue", de: "Liga", es: "Liga", ja: "リーグ" },
+  // friendship / happiness (v1.9.0)
+  "friendship-title": { en: "Friendship", fr: "Amitié", de: "Freundschaft", es: "Amistad", ja: "なつき度" },
+  "friendship-tag": { en: "Care for your team — battles, berries and steps deepen the bond.", fr: "Prenez soin de votre équipe — combats, baies et pas renforcent le lien.", de: "Kümmere dich um dein Team — Kämpfe, Beeren und Schritte vertiefen die Bindung.", es: "Cuida a tu equipo: combates, bayas y pasos fortalecen el vínculo.", ja: "チームを大切に — バトル・きのみ・歩くことで絆が深まる。" },
+  "friendship-tier-neutral": { en: "Neutral", fr: "Neutre", de: "Neutral", es: "Neutro", ja: "ふつう" },
+  "friendship-tier-friendly": { en: "Friendly", fr: "Ami", de: "Freundlich", es: "Amistoso", ja: "なかよし" },
+  "friendship-tier-happy": { en: "Happy", fr: "Content", de: "Glücklich", es: "Feliz", ja: "たのしい" },
+  "friendship-tier-best": { en: "Best friends", fr: "Meilleurs amis", de: "Beste Freunde", es: "Mejores amigos", ja: "しんゆう" },
+  "friendship-xp-bonus": { en: "XP bonus", fr: "Bonus XP", de: "EP-Bonus", es: "Bono XP", ja: "経験値ボーナス" },
+  "friendship-dmg-bonus": { en: "Damage bonus", fr: "Bonus de dégâts", de: "Schadensbonus", es: "Bono de daño", ja: "ダメージボーナス" },
+  "friendship-evolved": { en: "{a} evolved into {b} from your bond!", fr: "{a} évolue en {b} grâce à votre lien !", de: "{a} entwickelt sich dank eurer Bindung zu {b}!", es: "¡{a} evolucionó a {b} gracias a tu vínculo!", ja: "きずなの力で {a} は {b} に進化した！" },
+  // save export/import (v1.9.0 polish)
+  "save-export": { en: "Export save", fr: "Exporter la sauvegarde", de: "Speicherstand exportieren", es: "Exportar partida", ja: "セーブを書き出す" },
+  "save-import": { en: "Import save", fr: "Importer la sauvegarde", de: "Speicherstand importieren", es: "Importar partida", ja: "セーブを読み込む" },
+  "save-download": { en: "DOWNLOAD", fr: "TÉLÉCHARGER", de: "HERUNTERLADEN", es: "DESCARGAR", ja: "ダウンロード" },
+  "save-load": { en: "LOAD FILE", fr: "CHARGER FICHIER", de: "DATEI LADEN", es: "CARGAR ARCHIVO", ja: "ファイルを開く" },
+  "save-import-hint": { en: "Paste a POKEBANNER|v2|... export or load a .json/.txt file", fr: "Collez un export POKEBANNER|v2|... ou chargez un fichier .json/.txt", de: "Füge einen POKEBANNER|v2|...-Export ein oder lade eine .json/.txt-Datei", es: "Pega un export POKEBANNER|v2|... o carga un archivo .json/.txt", ja: "POKEBANNER|v2|... を貼り付けるか、.json/.txtファイルを読み込む" },
 };
 
 /** Look up a UI string. Falls back to English, then to the key itself. */
@@ -387,6 +421,7 @@ const MOVES_FR: Record<string, string> = {
   "string-shot": "Sécrétion", "poison-powder": "Poudre Toxik", "stun-spore": "Para-Spore",
   "thunder-wave": "Cage-Éclair", sludge: "Détritus", confusion: "Choc Mental",
   psybeam: "Rafale Psy", "ancient-power": "Pouvoir Antique",
+  "shadow-ball": "Ball'Ombre",
 };
 
 const MOVES_DE: Record<string, string> = {
@@ -400,6 +435,7 @@ const MOVES_DE: Record<string, string> = {
   "string-shot": "Fadenschuss", "poison-powder": "Giftpuder", "stun-spore": "Stachelspore",
   "thunder-wave": "Donnerwelle", sludge: "Schlammbad", confusion: "Konfusion",
   psybeam: "Psystrahl", "ancient-power": "Antik-Kraft",
+  "shadow-ball": "Spukball",
 };
 
 const MOVES_JA: Record<string, string> = {
@@ -413,6 +449,7 @@ const MOVES_JA: Record<string, string> = {
   "string-shot": "いとをはく", "poison-powder": "どくのこな", "stun-spore": "しびれごな",
   "thunder-wave": "でんじは", sludge: "ヘドロこうげき", confusion: "ねんりき",
   psybeam: "サイケこうせん", "ancient-power": "げんしのちから",
+  "shadow-ball": "シャドーボール",
 };
 
 /** Localized move display name (Spanish and unknown ids fall back to EN). */
@@ -486,6 +523,24 @@ export function localizedChampionName(championId: string, lang: Language): strin
   if (lang === "ja" && CHAMPS_JA[championId]) return CHAMPS_JA[championId];
   return CHAMPIONS.find((c) => c.id === championId)?.name ?? championId;
 }
+
+/** Localized League member names (Elite Four + Champion); ES falls back to EN. */
+export function localizedLeagueName(memberId: string, lang: Language): string {
+  if (lang === "fr" && LEAGUE_FR[memberId]) return LEAGUE_FR[memberId];
+  if (lang === "de" && LEAGUE_DE[memberId]) return LEAGUE_DE[memberId];
+  if (lang === "ja" && LEAGUE_JA[memberId]) return LEAGUE_JA[memberId];
+  return LEAGUE.find((m) => m.id === memberId)?.name ?? memberId;
+}
+
+const LEAGUE_FR: Record<string, string> = {
+  lorelei: "Ondine", bruno: "Aldo", agatha: "Agatha", lance: "Peter", blue: "Régis",
+};
+const LEAGUE_DE: Record<string, string> = {
+  lorelei: "Lorelei", bruno: "Bruno", agatha: "Agatha", lance: "Siegfried", blue: "Blue",
+};
+const LEAGUE_JA: Record<string, string> = {
+  lorelei: "カンナ", bruno: "シバ", agatha: "キクコ", lance: "ワタル", blue: "グリーン",
+};
 
 // ---------------------------------------------------------------------------
 // Convenience: full display name of a species id in a language (used by the

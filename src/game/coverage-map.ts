@@ -4,7 +4,7 @@
 // scripts/coverage-report.ts (HTML report with per-suite drill-downs).
 //
 // Suites: "engine" | "storage" | "loop" | "fuzz" | "presentation" |
-//         "audio" | "sound" | "i18n" | "fx"
+//         "audio" | "sound" | "i18n" | "fx" | "v190"
 // ---------------------------------------------------------------------------
 
 export type SuiteName =
@@ -16,7 +16,8 @@ export type SuiteName =
   | "audio"
   | "sound"
   | "i18n"
-  | "fx";
+  | "fx"
+  | "v190";
 
 export const COVERAGE_MAP: Record<string, SuiteName[]> = {
   // ---- engine.ts ----
@@ -40,6 +41,16 @@ export const COVERAGE_MAP: Record<string, SuiteName[]> = {
   badgeDamageBonus: ["engine", "loop"],
   checkEvolution: ["engine", "loop"],
   evolutionFxFor: ["engine"],
+  // ---- v1.9.0 Master's Path (Indigo League, trainers/rival, friendship) ----
+  happinessOf: ["engine", "v190"],
+  addHappiness: ["engine", "v190"],
+  happinessTier: ["engine", "v190"],
+  happinessXpBonus: ["engine", "v190"],
+  happinessDamageBonus: ["engine", "v190"],
+  checkFriendshipEvolution: ["engine", "v190"],
+  setupLeagueMember: ["engine", "v190"],
+  isLeagueChampionMember: ["engine", "v190"],
+  leagueBookkeeping: ["engine", "v190"],
   cheatScore: ["engine"],
   applyXpAndLevels: ["engine", "loop", "fuzz"],
   expShare: ["engine", "loop", "fuzz"],
@@ -101,6 +112,7 @@ export const COVERAGE_MAP: Record<string, SuiteName[]> = {
   localizedMoveName: ["i18n"],
   localizedItemName: ["i18n"],
   localizedChampionName: ["i18n"],
+  localizedLeagueName: ["v190"],
   // ---- fx.ts (battle-presentation FX helpers) ----
   vsFlashActive: ["fx"],
   logHasCrit: ["fx"],

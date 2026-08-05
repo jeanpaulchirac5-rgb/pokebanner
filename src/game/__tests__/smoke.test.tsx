@@ -104,6 +104,7 @@ const PANEL_PROPS = {
   onRemoveFromTeam: noop,
   onViewDetails: noop,
   onChallengeChampion: noop,
+  onChallengeLeague: noop,
   onCenterService: noop,
   onSellPokemon: noop,
   onBuyMarketMon: noop,

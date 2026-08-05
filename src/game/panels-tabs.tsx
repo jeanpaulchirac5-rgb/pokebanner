@@ -4,10 +4,23 @@
 // Arena and Save render here; GamePanels imports them.
 // ---------------------------------------------------------------------------
 
-import { useEffect, useState } from "react";
-import { BIOMES, CHAMPIONS, GAME_VERSION, ITEMS, TUNING, getSpecies } from "./constants";
-import { badgeDamageBonus } from "./engine";
-import { LANG_LABELS, LANGS, localizedName, t } from "./i18n";
+import { useEffect, useRef, useState } from "react";
+import { BIOMES, CHAMPIONS, GAME_VERSION, ITEMS, LEAGUE, TUNING, getSpecies } from "./constants";
+import {
+  badgeDamageBonus,
+  happinessDamageBonus,
+  happinessOf,
+  happinessTier,
+  happinessXpBonus,
+  type HappinessTier,
+} from "./engine";
+import {
+  LANG_LABELS,
+  LANGS,
+  localizedLeagueName,
+  localizedName,
+  t,
+} from "./i18n";
 import { placeholderSprite, urlSpriteCombat } from "./presentation";
 import { compareVersions, fetchReleaseNotes } from "../lib/release";
 import type { ReleaseNote } from "../lib/release";
@@ -243,8 +256,16 @@ export function ShopTab(props: GamePanelsProps) {
 
 export function ArenaTab(props: GamePanelsProps) {
   const { save } = props;
+  const lang = save.language;
   const nextChamp = CHAMPIONS[save.championWins % CHAMPIONS.length];
   const bossLevel = (save.team[0]?.level ?? 5) + 3;
+  // v1.9.0: Indigo League — unlocked with all 8 badges. leagueIndex rotates
+  // through the five members (Elite Four → Champion); a cleared League
+  // rematches from Lorelei at higher levels.
+  const leagueUnlocked = save.badges.length >= CHAMPIONS.length;
+  const leagueIdx = save.leagueIndex % LEAGUE.length;
+  const nextMember = LEAGUE[leagueIdx];
+  const leagueLevel = (save.team[0]?.level ?? 5) + 4 + leagueIdx;
   return (
     <div className="space-y-2 text-[7px]">
       <div className="border-2 border-ink bg-red-100 p-1.5">
@@ -283,6 +304,51 @@ export function ArenaTab(props: GamePanelsProps) {
       <div className="text-ink/70">
         The leader gains a level every multiple of 5 → the Arena Champion appears.
       </div>
+
+      {/* v1.9.0: Indigo League — the Elite Four + Champion gauntlet */}
+      <div className="border-2 border-ink bg-indigo-100 p-1.5">
+        <div className="font-bold uppercase">
+          🏆 {t(lang, "league-title")} — {save.leagueWins} {t(lang, "league-wins")}
+          {save.leagueChampion ? " · " + t(lang, "league-title-earned") : ""}
+        </div>
+        <div className="mt-1 text-ink/70">{t(lang, "league-tag")}</div>
+        {!leagueUnlocked && (
+          <div className="mt-1 border-2 border-ink bg-gray-100 p-1 text-ink/70">
+            🔒 {t(lang, "league-locked")}
+          </div>
+        )}
+        {leagueUnlocked && (
+          <div className="mt-1 flex items-center gap-2 border-2 border-ink bg-white p-1.5">
+            <img
+              src={urlSpriteCombat(nextMember.speciesId)}
+              alt=""
+              className="h-10 w-10 pixelated"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = placeholderSprite(
+                  nextMember.speciesId,
+                );
+              }}
+            />
+            <div className="flex-1">
+              <div className="font-bold uppercase">
+                {localizedLeagueName(nextMember.id, lang)} — {nextMember.title}
+              </div>
+              <div className="text-ink/80">
+                {getSpecies(nextMember.speciesId).name} Lv.{leagueLevel} (boss: ×2.0 HP, ×1.6 ATK)
+              </div>
+              <div className="text-ink/70">
+                {t(lang, "league-reward", { money: TUNING.moneyPerElite })}
+              </div>
+            </div>
+            <button
+              className="nb-btn bg-indigo-300"
+              onClick={props.onChallengeLeague}
+            >
+              {save.leagueChampion ? t(lang, "league-rematch") : "CHALLENGE"}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -291,9 +357,38 @@ export function ArenaTab(props: GamePanelsProps) {
 
 export function SaveTab(props: GamePanelsProps) {
   const { save } = props;
+  const lang = save.language;
   const [exported, setExported] = useState("");
   const [importText, setImportText] = useState("");
   const [importOk, setImportOk] = useState<boolean | null>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const downloadSave = () => {
+    const text = props.onExport();
+    setExported(text);
+    try {
+      const blob = new Blob([text], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `pokebanner-save-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      /* file download unavailable (rare) — the textarea still has the export */
+    }
+  };
+  const loadFile = (file: File | undefined) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = String(reader.result ?? "");
+      setImportText(text);
+      setImportOk(props.onImport(text));
+    };
+    reader.readAsText(file);
+  };
   return (
     <div className="space-y-2 text-[7px]">
       <div className="flex items-center gap-1 border-2 border-ink bg-white p-1.5">
@@ -319,7 +414,7 @@ export function SaveTab(props: GamePanelsProps) {
         <StatMini label="Badges" value={`${props.save.badges.length}`} />
       </div>
       <div className="border-2 border-ink bg-white p-1.5">
-        <div className="mb-1 font-bold uppercase">Export save</div>
+        <div className="mb-1 font-bold uppercase">💾 {t(lang, "save-export")}</div>
         <div className="flex gap-1">
           <button
             className="nb-btn bg-blue-200"
@@ -334,6 +429,9 @@ export function SaveTab(props: GamePanelsProps) {
           >
             COPY
           </button>
+          <button className="nb-btn bg-teal-200" onClick={downloadSave}>
+            ⬇ {t(lang, "save-download")}
+          </button>
         </div>
         {exported && (
           <textarea
@@ -344,11 +442,11 @@ export function SaveTab(props: GamePanelsProps) {
         )}
       </div>
       <div className="border-2 border-ink bg-white p-1.5">
-        <div className="mb-1 font-bold uppercase">Import save</div>
+        <div className="mb-1 font-bold uppercase">📥 {t(lang, "save-import")}</div>
         <textarea
           value={importText}
           onChange={(e) => setImportText(e.target.value)}
-          placeholder="Paste a POKEBANNER|v2|... export here"
+          placeholder={t(lang, "save-import-hint")}
           className="h-14 w-full resize-none border-2 border-ink bg-gray-50 p-1 font-mono text-[6px]"
         />
         <div className="mt-1 flex items-center gap-2">
@@ -358,6 +456,19 @@ export function SaveTab(props: GamePanelsProps) {
           >
             IMPORT
           </button>
+          <button className="nb-btn bg-blue-200" onClick={() => fileRef.current?.click()}>
+            📂 {t(lang, "save-load")}
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".json,.txt"
+            className="hidden"
+            onChange={(e) => {
+              loadFile(e.target.files?.[0]);
+              e.target.value = "";
+            }}
+          />
           {importOk !== null && (
             <span className={importOk ? "text-green-700" : "text-red-600"}>
               {importOk ? "Save loaded ✓" : "Import failed ✗"}
@@ -460,6 +571,8 @@ export function CareerTab(props: GamePanelsProps) {
     [t(lang, "career-champions"), save.championWins.toLocaleString()],
     [t(lang, "career-rockets"), save.rocketsDefeated.toLocaleString()],
     [t(lang, "career-legendaries"), save.legendariesDefeated.toLocaleString()],
+    [t(lang, "career-trainers"), save.trainersDefeated.toLocaleString()],
+    [t(lang, "career-league"), save.leagueWins.toLocaleString()],
     [t(lang, "career-shinies"), save.shiniesSeen.toLocaleString()],
     [t(lang, "career-eggs"), save.eggsHatched.toLocaleString()],
     [t(lang, "career-steps"), save.steps.toLocaleString()],
@@ -524,6 +637,103 @@ export function CareerTab(props: GamePanelsProps) {
       <div className="border-2 border-ink bg-white p-1.5">
         <div className="font-bold uppercase">{t(lang, "career-next")}</div>
         <div className="mt-1 text-ink/70">{t(lang, "career-next-desc")}</div>
+        {save.leagueChampion && (
+          <div className="mt-1 border-2 border-ink bg-indigo-100 p-1 font-bold uppercase">
+            🏆 {t(lang, "league-title-earned")}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Friends — the happiness/friendship meter (v1.9.0 Master's Path)
+// ---------------------------------------------------------------------------
+
+export function FriendsTab(props: GamePanelsProps) {
+  const lang = props.save.language;
+  const save = props.save;
+  const members = [save.team[0], ...save.team.slice(1)];
+  const tierLabel = (tier: HappinessTier) =>
+    tier === "best"
+      ? t(lang, "friendship-tier-best")
+      : tier === "happy"
+        ? t(lang, "friendship-tier-happy")
+        : tier === "friendly"
+          ? t(lang, "friendship-tier-friendly")
+          : t(lang, "friendship-tier-neutral");
+  return (
+    <div className="space-y-2 text-[7px]">
+      <div className="border-2 border-ink bg-rose-100 p-1.5">
+        <div className="font-bold uppercase">❤ {t(lang, "friendship-title")}</div>
+        <div className="mt-1 text-ink/70">{t(lang, "friendship-tag")}</div>
+      </div>
+
+      {members.length === 0 && (
+        <div className="border-2 border-ink bg-white p-2 text-ink/60">
+          No team — add a Pokémon from the PC first.
+        </div>
+      )}
+
+      <div className="flex flex-col gap-1">
+        {members.map((m, i) => {
+          if (!m) return null;
+          const h = happinessOf(m);
+          const tier = happinessTier(h);
+          const hearts = tier === "best" ? 4 : tier === "happy" ? 3 : tier === "friendly" ? 2 : 1;
+          return (
+            <div key={i} className="flex items-center gap-2 border-2 border-ink bg-white p-1.5">
+              <img
+                src={urlSpriteCombat(m.speciesId)}
+                alt=""
+                className="h-8 w-8 pixelated"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).src = placeholderSprite(m.speciesId);
+                }}
+              />
+              <div className="flex-1">
+                <div className="flex items-center justify-between font-bold uppercase">
+                  <span>
+                    {m.nickname ?? localizedName(m.speciesId, lang)}
+                    {i === 0 ? " (LEAD)" : ""}
+                  </span>
+                  <span className="text-rose-600">
+                    {"♥".repeat(hearts)}
+                    <span className="text-ink/40">{"♡".repeat(4 - hearts)}</span> {h}/255
+                  </span>
+                </div>
+                <div className="mt-0.5 h-2 border-2 border-ink bg-white">
+                  <div
+                    className={
+                      "h-full " + (tier === "best" ? "bg-rose-500" : tier === "happy" ? "bg-orange-400" : tier === "friendly" ? "bg-yellow-400" : "bg-gray-300")
+                    }
+                    style={{ width: Math.round((h / 255) * 100) + "%" }}
+                  />
+                </div>
+                <div className="mt-0.5 flex items-center justify-between text-ink/70">
+                  <span className="font-bold uppercase">
+                    {tierLabel(tier)}
+                  </span>
+                  <span>
+                    {t(lang, "friendship-xp-bonus")}: +{Math.round((happinessXpBonus(h) - 1) * 100)}%
+                    · {t(lang, "friendship-dmg-bonus")}: +{Math.round((happinessDamageBonus(h) - 1) * 100)}%
+                  </span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="border-2 border-ink bg-white p-1.5">
+        <div className="font-bold uppercase">ℹ How to bond</div>
+        <ul className="mt-1 space-y-0.5 text-ink/70">
+          <li>• Winning battles: leader +2, bench +1.</li>
+          <li>• Using berries / potions: +5.</li>
+          <li>• Walking: +1 every {TUNING.happinessStepInterval} steps.</li>
+          <li>• At 120+ happiness, some Pokémon evolve from your bond alone!</li>
+        </ul>
       </div>
     </div>
   );

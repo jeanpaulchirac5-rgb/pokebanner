@@ -5,6 +5,7 @@ import type {
   DexEntry,
   DexRarity,
   ItemDef,
+  LeagueMemberDef,
   MoveDef,
   SpeciesDef,
   TypeName,
@@ -100,6 +101,22 @@ export const SPECIES: Record<string, SpeciesDef> = Object.fromEntries(
     base("zapdos", "Zapdos", ["electric", "flying"], 90, 90, 85, 3, 290),
     base("moltres", "Moltres", ["fire", "flying"], 90, 100, 90, 3, 290),
     base("mewtwo", "Mewtwo", ["psychic"], 106, 110, 90, 3, 340),
+    // v1.9.0: friendship-evolution targets + Elite Four roster. These species
+    // can be earned through friendship evolutions or faced in the Indigo
+    // League; they were absent before because they never spawned in the wild.
+    base("persian", "Persian", ["normal"], 65, 70, 60, 90, 154),
+    base("gloom", "Gloom", ["grass", "poison"], 60, 65, 70, 120, 138),
+    base("golbat", "Golbat", ["poison", "flying"], 75, 80, 70, 90, 159),
+    base("nidorina", "Nidorina", ["poison"], 70, 62, 67, 120, 128),
+    base("nidoran-m", "Nidoran♂", ["poison"], 46, 57, 40, 235, 60),
+    base("nidorino", "Nidorino", ["poison"], 61, 72, 57, 120, 128),
+    base("machop", "Machop", ["fighting"], 70, 80, 50, 180, 61),
+    base("machoke", "Machoke", ["fighting"], 80, 100, 70, 90, 142),
+    base("machamp", "Machamp", ["fighting"], 90, 130, 80, 45, 193),
+    base("rapidash", "Rapidash", ["fire"], 65, 100, 70, 60, 152),
+    base("dewgong", "Dewgong", ["ice", "water"], 90, 70, 80, 75, 166),
+    base("gengar", "Gengar", ["ghost", "poison"], 60, 65, 60, 45, 190),
+    base("aerodactyl", "Aerodactyl", ["rock", "flying"], 80, 105, 65, 45, 180),
     // Mythical easter egg — Celebi, the time traveler (beyond the 151)
     base("celebi", "Celebi", ["psychic", "grass"], 100, 100, 100, 3, 400, { nightOnly: false }),
   ].map((s) => [s.id, s]),
@@ -356,6 +373,8 @@ export const MOVES: Record<string, MoveDef> = {
   // v1.8.0: legendary birds & Mewtwo signature moves (ice joins the chart)
   "ice-beam": { id: "ice-beam", name: "Ice Beam", type: "ice", power: 90, accuracy: 100, target: "enemy" },
   "wing-attack": { id: "wing-attack", name: "Wing Attack", type: "flying", power: 60, accuracy: 100, target: "enemy" },
+  // v1.9.0: ghost coverage for Agatha's Gengar (the only ghost specialist)
+  "shadow-ball": { id: "shadow-ball", name: "Shadow Ball", type: "ghost", power: 80, accuracy: 100, target: "enemy" },
 };
 
 const STARTER_MOVES: Record<string, string[]> = {
@@ -457,6 +476,21 @@ export const WILD_MOVES: Record<string, string[]> = {
   hitmonlee: ["karate-chop", "rock-slide", "mud-slap", "quick-attack"],
   machoke: ["karate-chop", "rock-throw", "mud-slap", "tackle"],
   gyarados: ["bite", "water-gun", "ancient-power", "ice-beam"],
+  // v1.9.0: friendship-evolution targets (earned via the bond system)
+  persian: ["scratch", "bite", "quick-attack"],
+  gloom: ["acid", "vine-whip", "leech-seed", "sleep-powder"],
+  golbat: ["bite", "gust", "poison-sting", "wing-attack"],
+  nidorina: ["poison-sting", "tackle", "bite"],
+  "nidoran-m": ["poison-sting", "tackle", "bite"],
+  nidorino: ["poison-sting", "karate-chop", "tackle"],
+  machop: ["karate-chop", "rock-throw", "tackle"],
+  machamp: ["karate-chop", "rock-slide", "rock-throw", "tackle"],
+  rapidash: ["ember", "flame-charge", "quick-attack", "fire-fang"],
+  // v1.9.0: Elite Four & League Champion signature kits
+  dewgong: ["ice-beam", "water-gun", "wing-attack", "peck"],
+  gengar: ["shadow-ball", "sludge", "confusion", "psybeam"],
+  aerodactyl: ["wing-attack", "rock-slide", "rock-throw", "bite"],
+  charizard: ["ember", "fire-fang", "flame-charge", "wing-attack"],
 };
 
 export function starterMovesFor(speciesId: string): MoveDef[] {
@@ -595,6 +629,69 @@ export const ROCKET_POOL = ["rattata", "ekans", "zubat", "mankey"];
 export const LEGENDS: string[] = ["articuno", "zapdos", "moltres", "mewtwo"];
 
 /**
+ * Indigo League gauntlet (v1.9.0): the four Elite Four members plus the
+ * League Champion. Unlocked after all 8 badges; the rotation advances with
+ * leagueIndex (member = LEAGUE[leagueIndex % LEAGUE.length]), so a cleared
+ * League rematches from Lorelei with higher levels.
+ */
+export const LEAGUE: LeagueMemberDef[] = [
+  { id: "lorelei", name: "Lorelei", title: "Elite Four · Ice", speciesId: "dewgong", color: "#4dd0e1" },
+  { id: "bruno", name: "Bruno", title: "Elite Four · Fighting", speciesId: "machamp", color: "#ff7043" },
+  { id: "agatha", name: "Agatha", title: "Elite Four · Ghost", speciesId: "gengar", color: "#9b59b6" },
+  { id: "lance", name: "Lance", title: "Elite Four · Dragon", speciesId: "aerodactyl", color: "#3d5afe" },
+  { id: "blue", name: "Blue", title: "League Champion", speciesId: "charizard", color: "#ffd54f" },
+];
+
+/** Route Trainer species (v1.9.0) — random trainers on the routes. */
+export const TRAINER_POOL: string[] = [
+  "pidgey",
+  "rattata",
+  "spearow",
+  "ekans",
+  "mankey",
+  "geodude",
+  "nidoran-f",
+  "growlithe",
+  "ponyta",
+  "oddish",
+];
+
+/** Route Trainer display names (v1.9.0). */
+export const TRAINER_NAMES: string[] = [
+  "Youngster",
+  "Lass",
+  "Bug Catcher",
+  "Hiker",
+  "Swimmer",
+  "Psychic",
+  "Camper",
+  "Picnicker",
+  "Juggler",
+  "Tamer",
+];
+
+/** Rival species (v1.9.0) — the rival's rotating team, a cut above trainers. */
+export const RIVAL_POOL: string[] = ["pikachu", "growlithe", "ponyta", "ekans", "mankey"];
+
+/**
+ * Friendship evolutions (v1.9.0): level is irrelevant — the bond decides.
+ * Targets fill gaps in the obtainable roster (no stones/trades in a banner).
+ */
+export const FRIENDSHIP_EVOLUTIONS: Record<string, { to: string; atHappiness: number }> = {
+  pikachu: { to: "raichu", atHappiness: 150 },
+  growlithe: { to: "arcanine", atHappiness: 150 },
+  meowth: { to: "persian", atHappiness: 150 },
+  oddish: { to: "gloom", atHappiness: 150 },
+  gloom: { to: "vileplume", atHappiness: 170 },
+  zubat: { to: "golbat", atHappiness: 130 },
+  machop: { to: "machoke", atHappiness: 120 },
+  machoke: { to: "machamp", atHappiness: 160 },
+  ponyta: { to: "rapidash", atHappiness: 150 },
+  "nidoran-f": { to: "nidorina", atHappiness: 150 },
+  "nidoran-m": { to: "nidorino", atHappiness: 150 },
+};
+
+/**
  * Egg species pool (v1.8.0). Walking hatches a random member; legendaries
  * are deliberately absent (they come from weather events) but the rest are
  * mid-rare Kanto species you'd otherwise hunt for a while.
@@ -677,7 +774,7 @@ export const GROUND_ITEM_WEIGHTS: [string, number][] = [
 // packaged desktop installer filename (kept in sync with desktop/package.json).
 // ---------------------------------------------------------------------------
 
-export const GAME_VERSION = "1.8.0";
+export const GAME_VERSION = "1.9.0";
 
 export const TUNING = {
   bannerHeight: 60,
@@ -736,6 +833,36 @@ export const TUNING = {
   /** Egg incubation window (steps walked), rolled per egg (v1.8.0). */
   eggStepsMin: 300,
   eggStepsMax: 600,
+  /** Route Trainer & Rival encounter chances (v1.9.0). Rolled inside the same
+   *  single encounter check as Team Rocket, so the RNG stream is unchanged: a
+   *  roll < rocketChance is a Rocket, < +trainerChance a Trainer, < +rivalChance
+   *  the Rival, otherwise a wild Pokémon. */
+  trainerChance: 0.12,
+  rivalChance: 0.02,
+  moneyPerTrainer: 80,
+  moneyPerRival: 250,
+  trainerXpMult: 1.4,
+  rivalXpMult: 1.8,
+  /** Elite Four & League Champion purses (v1.9.0). */
+  moneyPerElite: 5000,
+  moneyPerLeagueChampion: 8000,
+  eliteXpMult: 3,
+  /** Happiness / friendship knobs (v1.9.0). Ratings are 0–255. */
+  happinessStart: 40,
+  happinessWinLeader: 2,
+  happinessWinBench: 1,
+  happinessHeal: 5,
+  /** Steps walked per +1 happiness for the leader. */
+  happinessStepInterval: 150,
+  /** Tier thresholds. */
+  happinessFriendly: 50,
+  happinessHappy: 100,
+  happinessBest: 200,
+  /** Tier bonuses. */
+  happinessXpFriendly: 0.05,
+  happinessXpBest: 0.1,
+  happinessDmgHappy: 0.05,
+  happinessDmgBest: 0.1,
 };
 
 export const UI = {

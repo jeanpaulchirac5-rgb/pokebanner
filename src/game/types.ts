@@ -77,9 +77,20 @@ export interface Pokemon {
    *  When set, the leader uses exactly these in battle instead of the
    *  species default learnset (v1.8.0 move configuration). */
   moves?: string[];
+  /** Friendship / happiness rating 0–255 (v1.9.0). Grows from battles won,
+   *  healing items and walking; high values unlock bonuses and friendship
+   *  evolutions. Missing on old saves — normalizeSave defaults it. */
+  happiness?: number;
 }
 
-export type EncounterKind = "wild" | "rocket" | "champion" | "legendary";
+export type EncounterKind =
+  | "wild"
+  | "rocket"
+  | "champion"
+  | "legendary"
+  | "trainer"
+  | "rival"
+  | "elite";
 
 export interface Encounter {
   kind: EncounterKind;
@@ -88,6 +99,8 @@ export interface Encounter {
   shiny: boolean;
   isBoss?: boolean;
   championId?: string;
+  /** Route trainer name when kind === "trainer" (v1.9.0). */
+  trainerName?: string;
   hpScale?: number;
   atkScale?: number;
 }
@@ -162,6 +175,17 @@ export interface SaveData {
   battlesLost: number;
   eggsHatched: number;
   legendariesDefeated: number;
+  /** Elite Four & League progress (v1.9.0): index of the next member to
+   *  face (0–4; 5+ means the League has been cleared once). */
+  leagueIndex: number;
+  /** Total League members defeated (v1.9.0). */
+  leagueWins: number;
+  /** True once the League Champion has been beaten (v1.9.0). */
+  leagueChampion: boolean;
+  /** Route trainers defeated (v1.9.0). */
+  trainersDefeated: number;
+  /** Rival defeats (v1.9.0). */
+  rivalDefeated: number;
 }
 
 /** Legacy shape used by the very first version of the game. */
@@ -214,6 +238,8 @@ export interface BattleState {
   /** Champion id (e.g. "brock") when fighting a gym boss — gives the boss
    *  its signature movepool instead of the generic wild set. */
   enemyChampionId?: string;
+  /** Friendship damage bonus multiplier for the leader (v1.9.0). */
+  happyMult?: number;
 }
 
 export type Rng = () => number;
@@ -267,4 +293,16 @@ export interface BiomeDef {
   prop: string;
   /** Prop highlight (petal center / cap spot / crystal shine). */
   prop2: string;
+}
+
+/** One member of the Indigo League gauntlet (v1.9.0): the four Elite Four
+ *  members plus the League Champion. */
+export interface LeagueMemberDef {
+  id: string;
+  name: string;
+  /** Display title, e.g. "Elite Four · Ice". */
+  title: string;
+  speciesId: string;
+  /** Display color for the League UI. */
+  color: string;
 }

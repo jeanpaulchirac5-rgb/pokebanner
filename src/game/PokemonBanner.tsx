@@ -18,6 +18,7 @@ import {
   CHAMPIONS,
   DEX_MILESTONES,
   ITEMS,
+  LEAGUE,
   MOVES,
   TUNING,
   getDexMeta,
@@ -46,6 +47,7 @@ import {
   vsFlashActive,
 } from "./fx";
 import {
+  addHappiness,
   addToPc,
   addToTeam,
   advanceEggs,
@@ -58,12 +60,16 @@ import {
   captureAttempt,
   championBookkeeping,
   checkEvolution,
+  checkFriendshipEvolution,
   computeVictoryRewards,
   createSave,
   doBattleTick,
   easterEggUnlocked,
   evolutionFxFor,
   expShare,
+  happinessDamageBonus,
+  happinessOf,
+  leagueBookkeeping,
   makePokemon,
   makeWildEnemy,
   dexMilestonesEarned,
@@ -75,6 +81,7 @@ import {
   pokedexMilestone,
   randomEgg,
   setupChampion,
+  setupLeagueMember,
   switchLeader,
   timePhase,
   weatherEncounterMult,
@@ -190,7 +197,15 @@ interface GameRef {
   detailsMon: Pokemon | null;
   /** PC index of the Pokémon being viewed (move configuration targets it). */
   detailsIdx: number | null;
-  battle: { leader: Pokemon; enemy: Pokemon; enemyChampionId?: string } | null;
+  battle: {
+    leader: Pokemon;
+    enemy: Pokemon;
+    enemyChampionId?: string;
+    /** Friendship damage multiplier for the leader (v1.9.0). */
+    happyMult: number;
+  } | null;
+  /** Accumulated walking steps toward the next +1 leader happiness. */
+  happinessSteps: number;
   hpFlash: "leader" | "enemy" | null;
   lunge: "leader" | "enemy" | null;
   /** Critical-hit flinch: brief species-flavored recoil on the hit sprite. */
@@ -309,6 +324,7 @@ export default function PokemonBanner() {
       detailsMon: null,
       detailsIdx: null,
       battle: null,
+      happinessSteps: 0,
       hpFlash: null,
       lunge: null,
       flinch: null,
@@ -475,6 +491,21 @@ export default function PokemonBanner() {
           s.messageUntil = now + 2600;
           preloadSprites([egg.speciesId]);
         }
+        // Happiness from walking (v1.9.0): every happinessStepInterval steps
+        // the leader's bond grows a little.
+        s.happinessSteps += 1;
+        if (s.happinessSteps >= TUNING.happinessStepInterval) {
+          s.happinessSteps = 0;
+          const lead = s.save.team[0];
+          if (lead) {
+            s.save = normalizeSave({
+              ...s.save,
+              team: s.save.team.map((m, i) =>
+                i === 0 ? { ...m, happiness: addHappiness(m.happiness, 1) } : m,
+              ),
+            });
+          }
+        }
         // Biome: a player-chosen biome pins the scenery; "auto" rotates.
         const biomeIdx = biomeIndexForSave(s.save);
         if (biomeIdx !== s.lastStepBiome) {
@@ -557,6 +588,16 @@ export default function PokemonBanner() {
             s.message = tr("legendary-appears", { mon: trName(encounter.speciesId) });
             s.messageUntil = now + 2800;
             playSfx("shiny");
+          } else if (encounter.kind === "trainer") {
+            s.notif = { color: "blue", key: Date.now() };
+            s.message = tr("trainer-appears", { mon: encounter.trainerName ?? "Trainer" });
+            s.messageUntil = now + 2400;
+            playSfx("switchin");
+          } else if (encounter.kind === "rival") {
+            s.notif = { color: "blue", key: Date.now() };
+            s.message = tr("rival-appears", { mon: "Rival" });
+            s.messageUntil = now + 2400;
+            playSfx("switchin");
           }
           s.save = {
             ...s.save,
@@ -612,6 +653,8 @@ export default function PokemonBanner() {
               // Champions keep their signature movepool through the whole fight
               // (and after a switch the new leader still faces the same boss).
               enemyChampionId: s.enemy.encounter.championId,
+              // v1.9.0: the bond is carried into the battle as a damage bonus.
+              happyMult: happinessDamageBonus(happinessOf(leader)),
             };
             s.battleTimer = 0;
             s.lowHpBeeped = false;
@@ -683,6 +726,7 @@ export default function PokemonBanner() {
         turn: 0,
         log: [],
         enemyChampionId: s.battle.enemyChampionId,
+        happyMult: happinessDamageBonus(happinessOf(leader)),
       },
       rng,
     );
@@ -818,6 +862,12 @@ export default function PokemonBanner() {
       if (s.enemy!.encounter.kind === "legendary") {
         nextSave = { ...nextSave, legendariesDefeated: nextSave.legendariesDefeated + 1 };
       }
+      if (s.enemy!.encounter.kind === "trainer") {
+        nextSave = { ...nextSave, trainersDefeated: nextSave.trainersDefeated + 1 };
+      }
+      if (s.enemy!.encounter.kind === "rival") {
+        nextSave = { ...nextSave, rivalDefeated: nextSave.rivalDefeated + 1 };
+      }
       let badgeMsg: string | null = null;
       if (s.enemy!.encounter.kind === "champion") {
         const cb = championBookkeeping(nextSave, s.enemy!.encounter.championId);
@@ -826,6 +876,29 @@ export default function PokemonBanner() {
           badgeMsg = tr("badge-earned", { badge: cb.badgeAwarded });
         }
       }
+      // v1.9.0: Indigo League win bookkeeping — advance the gauntlet and crown
+      // the player on their first clear of the League Champion.
+      let leagueMsg: string | null = null;
+      if (s.enemy!.encounter.kind === "elite") {
+        const lb = leagueBookkeeping(nextSave, s.enemy!.encounter.championId);
+        nextSave = lb.save;
+        if (lb.champion) {
+          leagueMsg = tr("league-champion");
+          playSfx("levelup");
+        }
+      }
+      // v1.9.0: bonds deepen in battle — leader +2, bench +1 (per healthy
+      // member; fainted ones were just revived by the post-battle recovery).
+      nextSave = {
+        ...nextSave,
+        team: nextSave.team.map((m, i) => ({
+          ...m,
+          happiness: addHappiness(
+            m.happiness,
+            i === 0 ? TUNING.happinessWinLeader : TUNING.happinessWinBench,
+          ),
+        })),
+      };
       s.save = normalizeSave(nextSave);
       const levelMessages: string[] = [];
       share.leveled.forEach((i) => {
@@ -883,6 +956,44 @@ export default function PokemonBanner() {
         persist();
         return;
       }
+      // v1.9.0: friendship evolutions — the bond, not the level, decides.
+      const friendEvo = checkFriendshipEvolution(s.save.team[0]);
+      if (friendEvo) {
+        playSfx("evolve");
+        const fx = evolutionFxFor(friendEvo.newSpeciesId);
+        s.evoFx = {
+          kind: fx.kind,
+          color: fx.color,
+          accent: fx.accent,
+          glyph: fx.glyph,
+          from: friendEvo.oldSpeciesId,
+          to: friendEvo.newSpeciesId,
+        };
+        // v1.9.0: bond-driven evolution announces the deepening friendship
+        // before the transformation (instead of the level-up "evolving" text).
+        s.message = tr("league-evolve");
+        s.phase = "evolving";
+        s.pauseLeft = 3200;
+        s.messageUntil = now + 3200;
+        preloadSprites([friendEvo.newSpeciesId]);
+        rerender();
+        window.setTimeout(() => {
+          if (!g.current) return;
+          const sv = g.current.save;
+          const team = sv.team.map((m, i) => (i === 0 ? { ...m, hp: m.maxHp } : m));
+          g.current.save = normalizeSave({ ...sv, team });
+          g.current.message = tr("friendship-evolved", {
+            a: trName(friendEvo.oldSpeciesId),
+            b: trName(friendEvo.newSpeciesId),
+          });
+          g.current.messageUntil = Date.now() + 2000;
+          g.current.evoFx = null;
+          persist();
+          rerender();
+        }, 3200);
+        persist();
+        return;
+      }
       // Bench evolutions: expShare already applied evolutions to boxed/bench
       // members (they earn half XP) — surface them so no evolution is silent.
       const benchEvoMessages: string[] = [];
@@ -897,9 +1008,10 @@ export default function PokemonBanner() {
         }
       });
       if (benchEvoMessages.length > 0) playSfx("evolve");
-      // Badge message takes priority when a champion was beaten; otherwise the
-      // XP/₽ summary (never clobbers the badge announcement anymore).
+      // Badge / League messages take priority when a boss was beaten; otherwise
+      // the XP/₽ summary (never clobbers the badge announcement anymore).
       s.message =
+        leagueMsg ??
         badgeMsg ??
         benchEvoMessages[0] ??
         levelMessages[0] ??
@@ -975,6 +1087,21 @@ export default function PokemonBanner() {
   const tryCapture = () => {
     const s = g.current!;
     if (s.phase !== "battle" || !s.enemy) return;
+    // v1.9.0: trainer-owned Pokémon can't be captured — route trainers, the
+    // Rival, gym champions, and Elite Four/League members all refuse the ball.
+    const trainerOwned =
+      s.enemy.encounter.kind === "trainer" ||
+      s.enemy.encounter.kind === "rival" ||
+      s.enemy.encounter.kind === "champion" ||
+      s.enemy.encounter.kind === "elite" ||
+      s.enemy.encounter.kind === "rocket";
+    if (trainerOwned) {
+      playSfx("denied");
+      s.message = tr("no-capture");
+      s.messageUntil = Date.now() + 1600;
+      rerender();
+      return;
+    }
     const ball = (s.save.inventory.greatball ?? 0) > 0 ? "greatball" : "pokeball";
     if ((s.save.inventory[ball] ?? 0) <= 0) {
       playSfx("denied");
@@ -1099,13 +1226,19 @@ export default function PokemonBanner() {
     // Capture the healed amount BEFORE reassigning (the old code read the diff
     // after reassignment and always printed +0 HP).
     const healed = Math.max(0, res.pokemon.hp - before);
+    // v1.9.0: pampering a Pokémon deepens the bond — healing items are worth
+    // a happiness boost (matches the Friends tab's "berries & potions +5").
+    const pampered = {
+      ...res.pokemon,
+      happiness: addHappiness(res.pokemon.happiness, TUNING.happinessHeal),
+    };
     if (s.phase === "battle" && s.battle) {
-      s.battle = { ...s.battle, leader: res.pokemon };
+      s.battle = { ...s.battle, leader: pampered };
       // Healed back above the warning line → re-arm the low-HP beep.
-      if (res.pokemon.hp > res.pokemon.maxHp * 0.25) s.lowHpBeeped = false;
+      if (pampered.hp > pampered.maxHp * 0.25) s.lowHpBeeped = false;
     } else {
       const team = [...s.save.team];
-      team[0] = res.pokemon;
+      team[0] = pampered;
       s.save = normalizeSave({ ...s.save, team });
     }
     s.save = normalizeSave({
@@ -1181,6 +1314,36 @@ export default function PokemonBanner() {
     s.arenaAvailable = false;
     s.arenaClearedLevel = leader.level;
     s.panel = null;
+    s.phase = "approach";
+    persist();
+    rerender();
+  };
+
+  /**
+   * v1.9.0: challenge the Indigo League. Unlocked with all 8 badges; the
+   * gauntlet rotates through the four Elite Four members then the Champion,
+   * each boss-scaled a few levels above the leader (setupLeagueMember).
+   * Wins flow through leagueBookkeeping in the victory path, which advances
+   * the rotation and crowns the player on their first League clear.
+   */
+  const challengeLeague = () => {
+    const s = g.current!;
+    if (s.phase !== "walking") return;
+    if (s.save.badges.length < CHAMPIONS.length) return; // locked — button is hidden anyway
+    const leader = s.save.team[0];
+    if (!leader) return;
+    const encounter = setupLeagueMember(leader.level, s.save.leagueIndex);
+    const pokemon = makeWildEnemy(s.save, encounter);
+    s.save = {
+      ...s.save,
+      pokedex: markPokedex(s.save.pokedex, encounter.speciesId, "seen"),
+    };
+    preloadSprites([encounter.speciesId], "combat");
+    s.enemy = { pokemon, encounter, x: viewportW.current + 30 };
+    s.panel = null;
+    s.message = tr("league-member", { mon: trName(encounter.speciesId) });
+    s.messageUntil = Date.now() + 2400;
+    playSfx("switchin");
     s.phase = "approach";
     persist();
     rerender();
@@ -2391,6 +2554,7 @@ export default function PokemonBanner() {
             onRemoveFromTeam={onRemoveFromTeam}
             onViewDetails={onViewDetails}
             onChallengeChampion={challengeChampion}
+            onChallengeLeague={challengeLeague}
             onCenterService={onCenterService}
             onSellPokemon={onSellPokemon}
             onBuyMarketMon={onBuyMarketMon}
