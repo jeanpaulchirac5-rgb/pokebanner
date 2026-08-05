@@ -4,7 +4,7 @@
 // scripts/coverage-report.ts (HTML report with per-suite drill-downs).
 //
 // Suites: "engine" | "storage" | "loop" | "fuzz" | "presentation" |
-//         "audio" | "sound" | "i18n" | "fx" | "v190"
+//         "audio" | "sound" | "i18n" | "fx" | "v190" | "v200"
 // ---------------------------------------------------------------------------
 
 export type SuiteName =
@@ -17,7 +17,8 @@ export type SuiteName =
   | "sound"
   | "i18n"
   | "fx"
-  | "v190";
+  | "v190"
+  | "v200";
 
 export const COVERAGE_MAP: Record<string, SuiteName[]> = {
   // ---- engine.ts ----
@@ -51,6 +52,28 @@ export const COVERAGE_MAP: Record<string, SuiteName[]> = {
   setupLeagueMember: ["engine", "v190"],
   isLeagueChampionMember: ["engine", "v190"],
   leagueBookkeeping: ["engine", "v190"],
+  // ---- v2.0.0 Champions & Légendes (Ghost PvP, quests, pass, auras, photo) ----
+  cardFromTeam: ["engine", "v200"],
+  pvpRankIndex: ["engine", "v200"],
+  pvpRankFor: ["engine", "v200"],
+  encodeTrainerCard: ["engine", "v200"],
+  decodeTrainerCard: ["engine", "v200"],
+  buildGhostEncounter: ["engine", "v200"],
+  pvpBookkeeping: ["engine", "v200"],
+  dailyKeyFor: ["engine", "v200"],
+  questsForDate: ["engine", "v200"],
+  recordActivity: ["engine", "v200"],
+  claimQuest: ["engine", "v200"],
+  passXpForTier: ["engine", "v200"],
+  passTierFor: ["engine", "v200"],
+  claimPassTier: ["engine", "v200"],
+  rollAura: ["engine", "v200"],
+  auraBonus: ["engine", "v200"],
+  applyAuraTo: ["engine", "v200"],
+  photoStampText: ["engine", "v200"],
+  photoScaleFor: ["engine", "v200"],
+  pushPhoto: ["engine", "v200"],
+  photoFilename: ["engine", "v200"],
   cheatScore: ["engine"],
   applyXpAndLevels: ["engine", "loop", "fuzz"],
   expShare: ["engine", "loop", "fuzz"],
@@ -113,6 +136,8 @@ export const COVERAGE_MAP: Record<string, SuiteName[]> = {
   localizedItemName: ["i18n"],
   localizedChampionName: ["i18n"],
   localizedLeagueName: ["v190"],
+  localizedPvpRank: ["i18n", "v200"],
+  localizedAuraName: ["i18n", "v200"],
   // ---- fx.ts (battle-presentation FX helpers) ----
   vsFlashActive: ["fx"],
   logHasCrit: ["fx"],

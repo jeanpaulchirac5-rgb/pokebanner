@@ -119,6 +119,17 @@ const PANEL_PROPS = {
   onSetBiome: noop,
   onSetMoves: noop,
   detailsIdx: null,
+  ghostCard: null,
+  onImportCard: () => false,
+  onChallengeGhost: noop,
+  onClaimQuest: noop,
+  onClaimPassTier: noop,
+  photos: [],
+  photoScale: "1x",
+  onSetPhotoScale: noop,
+  onCapturePhoto: noop,
+  onDeletePhoto: noop,
+  onExportPhoto: noop,
 };
 
 describe("PokemonBanner render smoke", () => {
@@ -207,6 +218,9 @@ describe("GamePanels render smoke (every tab)", () => {
     "news",
     "save",
     "settings",
+    "pvp",
+    "quests",
+    "photo",
   ];
 
   beforeEach(() => {

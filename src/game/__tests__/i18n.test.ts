@@ -180,6 +180,7 @@ const SOURCES = [
   `${here}../PokemonBanner.tsx`,
   `${here}../panels.tsx`,
   `${here}../panels-tabs.tsx`,
+  `${here}../panels-v2.tsx`,
   `${here}../../pages/Landing.tsx`,
 ];
 
@@ -229,6 +230,12 @@ describe("i18n: usage ↔ dictionary integrity", () => {
       "b",
       "badge",
       "price",
+      "n",
+      "name",
+      "rank",
+      "tier",
+      "reward",
+      "aura",
     ]);
     const bad: string[] = [];
     for (const key of uiKeys()) {

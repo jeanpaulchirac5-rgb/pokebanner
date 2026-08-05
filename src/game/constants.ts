@@ -1,4 +1,6 @@
 import type {
+  AuraDef,
+  AuraKind,
   BiomeDef,
   CenterServiceId,
   ChampionDef,
@@ -7,6 +9,10 @@ import type {
   ItemDef,
   LeagueMemberDef,
   MoveDef,
+  PassTierDef,
+  PvpRankDef,
+  QuestDef,
+  QuestKind,
   SpeciesDef,
   TypeName,
   WeatherKind,
@@ -770,11 +776,128 @@ export const GROUND_ITEM_WEIGHTS: [string, number][] = [
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
+// v2.0.0 — Champions & Légendes
+// ---------------------------------------------------------------------------
+
+/** Trainer Card codec alphabet (v2.0.0): unambiguous base-32 (no 0/O/1/I). */
+export const CARD_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+
+/** Ghost PvP rank ladder (v2.0.0) — cumulative wins unlock each rank. */
+export const PVP_RANKS: PvpRankDef[] = [
+  { id: "novice", minWins: 0, color: "#9e9e9e" },
+  { id: "bronze", minWins: 3, color: "#b97a4e" },
+  { id: "silver", minWins: 8, color: "#b0bec5" },
+  { id: "gold", minWins: 15, color: "#ffd54f" },
+  { id: "platinum", minWins: 25, color: "#4dd0e1" },
+  { id: "master", minWins: 40, color: "#ff7043" },
+];
+
+export const PVP_TUNING = {
+  /** Ghost leaders fight a few levels above yours, scaled by their rank. */
+  levelOffset: 3,
+  hpScale: 1.9,
+  atkScale: 1.5,
+  /** Purse per ghost duel won. */
+  moneyPerWin: 400,
+  /** Bonus awarded the moment a new rank is reached. */
+  rankUpMoney: 800,
+};
+
+/** Elemental Aura variants (v2.0.0). */
+export const AURAS: Record<AuraKind, AuraDef> = {
+  flame: { id: "flame", name: "Flame", color: "#ff7043", dmgMult: 1.08, xpMult: 1 },
+  bolt: { id: "bolt", name: "Bolt", color: "#ffd54f", dmgMult: 1.12, xpMult: 1 },
+  aurora: { id: "aurora", name: "Aurora", color: "#4dd0e1", dmgMult: 1.05, xpMult: 1.12 },
+};
+
+/** Ultra-rare wild-encounter aura chance (1 in 64, on top of shiny). */
+export const AURA_CHANCE = 1 / 64;
+
+/** Daily quest templates — three are drawn per day (v2.0.0). */
+export const QUEST_POOL: QuestDef[] = [
+  { id: "quest-battle", kind: "battle", target: 5, reward: 60 },
+  { id: "quest-capture", kind: "capture", target: 3, reward: 80 },
+  { id: "quest-steps", kind: "steps", target: 300, reward: 80 },
+  { id: "quest-rocket", kind: "rocket", target: 1, reward: 150 },
+  { id: "quest-trainer", kind: "trainer", target: 2, reward: 120 },
+  { id: "quest-pvp", kind: "pvp", target: 1, reward: 120 },
+  { id: "quest-heal", kind: "heal", target: 3, reward: 50 },
+];
+
+export const QUEST_TUNING = {
+  /** Daily quests per day. */
+  count: 3,
+};
+
+/** League Pass XP per activity (v2.0.0). Steps are recorded in 100-step chunks. */
+export const PASS_TUNING = {
+  xpPer: {
+    battle: 12,
+    capture: 6,
+    steps: 25,
+    rocket: 24,
+    trainer: 18,
+    pvp: 30,
+    heal: 2,
+  } as Record<QuestKind, number>,
+};
+
+/** Cumulative XP needed to unlock tier t (index t; index 0 unused). */
+export const PASS_THRESHOLDS: number[] = (() => {
+  const out = [0];
+  for (let t = 1; t <= 30; t++) out.push(Math.round((20 * t * (t + 1)) / 2));
+  return out;
+})();
+
+function passReward(tier: number): PassTierDef["reward"] {
+  switch (tier) {
+    case 3:
+      return { kind: "item", itemId: "pokeball" };
+    case 5:
+      return { kind: "item", itemId: "berry" };
+    case 7:
+      return { kind: "item", itemId: "sitrus" };
+    case 8:
+    case 16:
+    case 20:
+    case 24:
+    case 29:
+      return { kind: "egg" };
+    case 10:
+      return { kind: "item", itemId: "potion" };
+    case 12:
+      return { kind: "item", itemId: "greatball" };
+    case 14:
+      return { kind: "item", itemId: "hyperpotion" };
+    case 18:
+      return { kind: "item", itemId: "greatball", amount: 2 };
+    case 22:
+      return { kind: "item", itemId: "sitrus", amount: 2 };
+    case 25:
+      return { kind: "aura", aura: "flame" };
+    case 27:
+      return { kind: "item", itemId: "greatball", amount: 2 };
+    case 28:
+      return { kind: "aura", aura: "bolt" };
+    case 30:
+      return { kind: "aura", aura: "aurora" };
+    default:
+      return { kind: "money", amount: 100 + tier * 25 };
+  }
+}
+
+/** The 30 League Pass tiers (v2.0.0). */
+export const PASS_TIERS: PassTierDef[] = Array.from({ length: 30 }, (_, i) => ({
+  tier: i + 1,
+  reward: passReward(i + 1),
+}));
+
+// ---------------------------------------------------------------------------
 // Release version — shown on the landing page, the in-game Save tab, and the
 // packaged desktop installer filename (kept in sync with desktop/package.json).
 // ---------------------------------------------------------------------------
 
-export const GAME_VERSION = "1.9.0";
+export const GAME_VERSION = "2.0.0";
 
 export const TUNING = {
   bannerHeight: 60,

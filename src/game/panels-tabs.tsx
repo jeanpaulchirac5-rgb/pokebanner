@@ -796,3 +796,12 @@ export function EggsTab(props: GamePanelsProps) {
     </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+// v2.0.0 — Champions & Légendes: Ghost PvP, Daily Quests & League Pass, and
+// the 8-bit Safari photo gallery live in panels-v2.tsx (kept modular so this
+// file stays readable). GamePanels imports them through this re-export.
+// ---------------------------------------------------------------------------
+
+export { PhotoTab, PvpTab, QuestsTab, passRewardLabel } from "./panels-v2";
+

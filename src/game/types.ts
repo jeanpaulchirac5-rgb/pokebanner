@@ -81,6 +81,9 @@ export interface Pokemon {
    *  healing items and walking; high values unlock bonuses and friendship
    *  evolutions. Missing on old saves — normalizeSave defaults it. */
   happiness?: number;
+  /** Elemental Aura variant (v2.0.0): flame / bolt / aurora. Ultra-rare, gives
+   *  the whole team a passive combat or XP bonus while this mon is owned. */
+  aura?: AuraKind;
 }
 
 export type EncounterKind =
@@ -90,7 +93,8 @@ export type EncounterKind =
   | "legendary"
   | "trainer"
   | "rival"
-  | "elite";
+  | "elite"
+  | "pvp";
 
 export interface Encounter {
   kind: EncounterKind;
@@ -103,6 +107,8 @@ export interface Encounter {
   trainerName?: string;
   hpScale?: number;
   atkScale?: number;
+  /** Elemental Aura variant (v2.0.0) — ultra-rare wild/ghost encounters. */
+  aura?: AuraKind;
 }
 
 export interface Inventory {
@@ -186,6 +192,19 @@ export interface SaveData {
   trainersDefeated: number;
   /** Rival defeats (v1.9.0). */
   rivalDefeated: number;
+  /** Ghost PvP ladder (v2.0.0) — lifetime wins drive the rank. */
+  pvpWins: number;
+  pvpLosses: number;
+  /** Today's daily quests (v2.0.0) — lazily created, null before activity. */
+  quests: DailyQuests | null;
+  /** League Pass XP and claimed tiers (v2.0.0). */
+  passXp: number;
+  passClaimed: number[];
+  /** Elemental Aura encounters seen / caught (v2.0.0). */
+  auraSeen: number;
+  auraCaught: number;
+  /** Safari photos taken (v2.0.0). */
+  photosTaken: number;
 }
 
 /** Legacy shape used by the very first version of the game. */
@@ -240,6 +259,8 @@ export interface BattleState {
   enemyChampionId?: string;
   /** Friendship damage bonus multiplier for the leader (v1.9.0). */
   happyMult?: number;
+  /** Team-wide damage multiplier from the leader's Elemental Aura (v2.0.0). */
+  auraMult?: number;
 }
 
 export type Rng = () => number;
@@ -305,4 +326,106 @@ export interface LeagueMemberDef {
   speciesId: string;
   /** Display color for the League UI. */
   color: string;
+}
+
+
+// ---------------------------------------------------------------------------
+// v2.0.0 — Champions & Légendes: Elemental Auras, Ghost PvP, daily quests,
+// the League Pass, and the 8-bit Safari photo gallery.
+// ---------------------------------------------------------------------------
+
+/** Ultra-rare Elemental Aura variants (v2.0.0). */
+export type AuraKind = "flame" | "bolt" | "aurora";
+
+export interface AuraDef {
+  id: AuraKind;
+  name: string;
+  /** Brand color used by the aura badge / photo stamp. */
+  color: string;
+  /** Team-wide damage multiplier while a member owns this aura. */
+  dmgMult: number;
+  /** Team-wide XP multiplier while a member owns this aura. */
+  xpMult: number;
+}
+
+/** The seven daily quest categories (v2.0.0). */
+export type QuestKind =
+  | "battle"
+  | "capture"
+  | "steps"
+  | "rocket"
+  | "trainer"
+  | "pvp"
+  | "heal";
+
+export interface QuestDef {
+  id: string;
+  kind: QuestKind;
+  /** Amount needed to complete the quest. */
+  target: number;
+  /** PokéDollar reward on claim. */
+  reward: number;
+}
+
+/** The three daily quests for one calendar day (v2.0.0). */
+export interface DailyQuests {
+  /** Local "YYYY-MM-DD" key the quests belong to. */
+  date: string;
+  defs: QuestDef[];
+  progress: number[];
+  claimed: boolean[];
+}
+
+/** A single League Pass (Battle Pass) reward (v2.0.0). */
+export interface PassReward {
+  kind: "money" | "item" | "egg" | "aura";
+  amount?: number;
+  itemId?: string;
+  aura?: AuraKind;
+}
+
+export interface PassTierDef {
+  /** 1–30. */
+  tier: number;
+  reward: PassReward;
+}
+
+/** Ghost PvP rank ladder (v2.0.0) — driven by lifetime pvp wins. */
+export type PvpRankId =
+  | "novice"
+  | "bronze"
+  | "silver"
+  | "gold"
+  | "platinum"
+  | "master";
+
+export interface PvpRankDef {
+  id: PvpRankId;
+  /** Wins required to hold this rank. */
+  minWins: number;
+  color: string;
+}
+
+/** A shareable Trainer Card (v2.0.0): the codec payload for Ghost PvP. */
+export interface TrainerCard {
+  trainerName: string;
+  rank: PvpRankId;
+  wins: number;
+  /** Up to 6 Pokémon, strongest first. */
+  team: Pokemon[];
+}
+
+/** One entry in the Safari photo gallery (v2.0.0). */
+export interface PhotoEntry {
+  id: string;
+  /** Epoch ms when the photo was taken. */
+  at: number;
+  /** Pixel multiplier used to render the photo (1 | 2 | 4). */
+  scale: number;
+  /** Featured species in the frame. */
+  speciesId: string;
+  /** Localized caption stamp burned into the image. */
+  stamp: string;
+  /** PNG data URL. */
+  dataUrl: string;
 }

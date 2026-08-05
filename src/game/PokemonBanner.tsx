@@ -87,6 +87,21 @@ import {
   weatherEncounterMult,
   weatherFor,
   applyItemOn,
+  applyAuraTo,
+  auraBonus,
+  buildGhostEncounter,
+  claimPassTier,
+  claimQuest,
+  decodeTrainerCard,
+  passTierFor,
+  photoFilename,
+  photoScaleFor,
+  photoStampText,
+  pushPhoto,
+  pvpBookkeeping,
+  pvpRankFor,
+  recordActivity,
+  rollAura,
 } from "./engine";
 import {
   clearSave,
@@ -126,6 +141,7 @@ import {
 import {
   LANG_LABELS,
   LANGS,
+  localizedAuraName,
   localizedItemName,
   localizedName,
   t,
@@ -154,9 +170,14 @@ import type {
   Language,
   Pokemon,
   WeatherKind,
+  PassReward,
+  PhotoEntry,
+  QuestKind,
   SaveData,
+  TrainerCard,
 } from "./types";
 import { GamePanels, type PanelTab } from "./panels";
+import { passRewardLabel } from "./panels-v2";
 
 type Phase =
   | "choose"
@@ -244,6 +265,12 @@ interface GameRef {
   nurseJoyCycle: number;
   /** Frames the Nurse Joy NPC stays visible (then she wanders off). */
   nurseJoyLife: number;
+  /** Imported Ghost PvP opponent card (v2.0.0) — null until one is imported. */
+  ghostCard: TrainerCard | null;
+  /** Safari photo gallery (v2.0.0) — in-memory, persisted to its own key. */
+  photos: PhotoEntry[];
+  /** Selected Safari capture scale id (v2.0.0): 1x | 2x | 4x. */
+  photoScale: string;
 }
 
 const WALK_PX_PER_FRAME = 3;
@@ -267,6 +294,114 @@ function StatusIcon({
     </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+// v2.0.0 — Safari photo persistence + the 8-bit banner snapshot renderer
+// ---------------------------------------------------------------------------
+
+const PHOTOS_KEY = "poke-banner-photos-v2";
+
+/** Loads the persisted Safari gallery (best-effort; caps at 12 entries). */
+function loadPhotos(): PhotoEntry[] {
+  if (typeof localStorage === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(PHOTOS_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw) as unknown;
+    if (!Array.isArray(arr)) return [];
+    return arr
+      .filter(
+        (p): p is PhotoEntry =>
+          Boolean(
+            p && typeof p === "object" && typeof (p as PhotoEntry).dataUrl === "string",
+          ),
+      )
+      .slice(0, 12);
+  } catch {
+    return [];
+  }
+}
+
+/** Team-wide Elemental Aura multipliers (v2.0.0): every aura member stacks. */
+function auraTeam(team: Pokemon[]): { dmg: number; xp: number } {
+  let dmg = 1;
+  let xp = 1;
+  for (const m of team) {
+    if (!m.aura) continue;
+    const b = auraBonus(m.aura);
+    dmg *= b.dmgMult;
+    xp *= b.xpMult;
+  }
+  return { dmg, xp };
+}
+
+const loadImage = (src: string): Promise<HTMLImageElement> =>
+  new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(img);
+    img.src = src;
+  });
+
+/**
+ * Paints a pixel-art snapshot of the current banner scene (sky, biome ground,
+ * walking leader, approaching enemy) onto a canvas and returns a PNG data URL.
+ * The pixel multiplier upscales the canvas for chunky 8-bit exports.
+ */
+async function drawBannerPhoto(s: GameRef, mult: number): Promise<string> {
+  const w = Math.min(960, window.innerWidth);
+  const h = TUNING.bannerHeight;
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(w * mult));
+  canvas.height = Math.max(1, Math.round(h * mult));
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return "";
+  ctx.imageSmoothingEnabled = false;
+  ctx.scale(mult, mult);
+  const now = Date.now();
+  const phase = timePhase(s.save.startedAt, now);
+  const biome = BIOMES[biomeIndexForSave(s.save)];
+  // Sky + ground strip (mirrors the live banner's palette).
+  ctx.fillStyle = skyColorFor(phase);
+  ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = biome.ground;
+  ctx.fillRect(0, h - 16, w, 16);
+  ctx.fillStyle = biome.grass;
+  ctx.fillRect(0, h - 18, w, 3);
+  // Sprites (loaded from the same Showdown URLs the banner uses).
+  const paints: { src: string; x: number }[] = [];
+  const leader = s.save.team[0];
+  if (leader) {
+    paints.push({ src: urlSpriteWalking(leader.speciesId), x: Math.min(s.leaderX, w - 56) });
+  }
+  if (s.enemy) {
+    paints.push({
+      src: s.enemy.pokemon.shiny
+        ? urlSpriteShiny(s.enemy.pokemon.speciesId)
+        : urlSpriteCombat(s.enemy.pokemon.speciesId),
+      x: Math.min(s.enemy.x, w - 56),
+    });
+  }
+  const imgs = await Promise.all(paints.map((p) => loadImage(p.src)));
+  paints.forEach((p, i) => {
+    ctx.drawImage(imgs[i], p.x, h - 16 - 44, 44, 44);
+  });
+  // Caption stamp burned into the top-left corner.
+  const stamp = photoStampText({
+    mon: leader ? localizedName(leader.speciesId, s.save.language) : "?",
+    level: leader?.level ?? 0,
+    biome: biome.name,
+    phase,
+    lang: s.save.language,
+  });
+  ctx.fillStyle = "rgba(0,0,0,0.78)";
+  ctx.fillRect(0, 0, Math.min(280, w), 12);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "8px monospace";
+  ctx.fillText(stamp, 3, 9);
+  return canvas.toDataURL("image/png");
+}
+
 
 export default function PokemonBanner() {
   const [tick, setTick] = useState(0);
@@ -343,6 +478,9 @@ export default function PokemonBanner() {
       nurseJoy: false,
       nurseJoyCycle: 0,
       nurseJoyLife: 0,
+      ghostCard: null,
+      photos: loadPhotos(),
+      photoScale: "1x",
     };
     if (save) {
       preloadSprites([save.team[0]?.speciesId ?? "bulbasaur"]);
@@ -467,6 +605,11 @@ export default function PokemonBanner() {
         }
         s.leaderX = nx;
         s.save = { ...s.save, steps: s.save.steps + 1 };
+        // v2.0.0: every 100 steps counts toward the daily steps quest + Pass XP.
+        if (s.save.steps % 100 === 0) {
+          applyActivity(s, "steps", 1);
+        }
+
         // Egg incubation (v1.8.0): every step walked ticks the eggs; when one
         // reaches 0 it hatches into its species (PC + team if room).
         const eggRes = advanceEggs(s.save.eggs ?? []);
@@ -573,7 +716,7 @@ export default function PokemonBanner() {
           // Rare weather events (v1.8.0): during an Eclipse or Aurora the
           // next encounter is ALWAYS a Legendary Boss — no Rocket/wild roll.
           const legendaryEvent = w === "eclipse" || w === "aurora";
-          const encounter = legendaryEvent
+          let encounter = legendaryEvent
             ? buildLegendaryEncounter(level, rng)
             : buildEncounter({
                 poolIds: BIOMES[biomeIdx].pool,
@@ -582,7 +725,22 @@ export default function PokemonBanner() {
                 allowRocket: true,
                 rng,
               });
+          // v2.0.0: ultra-rare Elemental Aura variant (1 in 64) on wild mons.
+          const auraRoll = encounter.kind === "wild" ? rollAura(rng) : null;
+          if (auraRoll) {
+            encounter = applyAuraTo(encounter, auraRoll);
+          }
           const pokemon = makeWildEnemy(s.save, encounter);
+          if (auraRoll) {
+            s.notif = { color: "red", key: Date.now() };
+            s.message = tr("aura-appears", {
+              aura: localizedAuraName(auraRoll, s.save.language),
+              mon: trName(encounter.speciesId),
+            });
+            s.messageUntil = now + 2400;
+            playSfx("shiny");
+            s.save = { ...s.save, auraSeen: s.save.auraSeen + 1 };
+          }
           if (legendaryEvent) {
             s.notif = { color: "red", key: Date.now() };
             s.message = tr("legendary-appears", { mon: trName(encounter.speciesId) });
@@ -727,7 +885,10 @@ export default function PokemonBanner() {
         log: [],
         enemyChampionId: s.battle.enemyChampionId,
         happyMult: happinessDamageBonus(happinessOf(leader)),
+        // v2.0.0: team-wide Elemental Aura damage bonus.
+        auraMult: auraTeam(save.team).dmg,
       },
+
       rng,
     );
     s.battle = { ...s.battle, leader: next.leader, enemy: next.enemy };
@@ -828,17 +989,22 @@ export default function PokemonBanner() {
     if (next.enemy.hp <= 0) {
       playSfx("victory");
       const rewards = computeVictoryRewards(s.enemy!.encounter, rng);
-      const xpBonus = pokedexMilestone(
-        Object.values(save.pokedex).filter((v) => v === "caught").length,
-      ).xpBonus;
+      const xpBonus =
+        pokedexMilestone(
+          Object.values(save.pokedex).filter((v) => v === "caught").length,
+        ).xpBonus * auraTeam(save.team).xp;
+
       const share = expShare(save.team, rewards.xpGain, xpBonus);
+      const isPvpVictory = s.enemy!.encounter.kind === "pvp";
       let nextSave: SaveData = {
         ...save,
         team: share.team,
-        money: save.money + rewards.moneyGain,
-        moneyEarned: save.moneyEarned + rewards.moneyGain,
+        // Ghost PvP duels pay via pvpBookkeeping below (no double purse).
+        money: save.money + (isPvpVictory ? 0 : rewards.moneyGain),
+        moneyEarned: save.moneyEarned + (isPvpVictory ? 0 : rewards.moneyGain),
         battlesWon: save.battlesWon + 1,
       };
+
       // Post-battle recovery: fainted team members revive to full HP so the
       // roster never accumulates dead weight (matches the KO-restore path).
       nextSave = {
@@ -868,6 +1034,32 @@ export default function PokemonBanner() {
       if (s.enemy!.encounter.kind === "rival") {
         nextSave = { ...nextSave, rivalDefeated: nextSave.rivalDefeated + 1 };
       }
+      // v2.0.0: Ghost PvP bookkeeping — ladder wins, purse, rank-up bonus.
+      let pvpMsg: string | null = null;
+      if (isPvpVictory) {
+        const pb = pvpBookkeeping(nextSave, true);
+        nextSave = pb.save;
+        if (pb.promoted) {
+          pvpMsg = tr("pvp-rank-up", {
+            rank: pvpRankFor(nextSave.pvpWins).id.toUpperCase(),
+          });
+          playSfx("levelup");
+        }
+      }
+      // v2.0.0: daily quests + League Pass XP per victory kind.
+      const questKind: QuestKind =
+        s.enemy!.encounter.kind === "rocket"
+          ? "rocket"
+          : s.enemy!.encounter.kind === "trainer"
+            ? "trainer"
+            : isPvpVictory
+              ? "pvp"
+              : "battle";
+      const passBefore = passTierFor(nextSave.passXp);
+      nextSave = normalizeSave(recordActivity(nextSave, questKind, 1));
+      const passAfter = passTierFor(nextSave.passXp);
+      const tierUpMsg =
+        passAfter > passBefore ? tr("pass-tier-unlocked", { tier: passAfter }) : null;
       let badgeMsg: string | null = null;
       if (s.enemy!.encounter.kind === "champion") {
         const cb = championBookkeeping(nextSave, s.enemy!.encounter.championId);
@@ -1015,6 +1207,8 @@ export default function PokemonBanner() {
         badgeMsg ??
         benchEvoMessages[0] ??
         levelMessages[0] ??
+        tierUpMsg ??
+        pvpMsg ??
         tr("rewards", { xp: rewards.xpGain, money: rewards.moneyGain });
       s.messageUntil = now + (badgeMsg ? 2600 : 2200);
       s.phase = "victory";
@@ -1054,6 +1248,15 @@ export default function PokemonBanner() {
         s.messageUntil = now + 2800;
         // Lifetime career stat (v1.8.0).
         s.save = { ...s.save, battlesLost: s.save.battlesLost + 1 };
+        // v2.0.0: a lost Ghost PvP duel counts on the ladder too.
+        if (s.enemy?.encounter.kind === "pvp") {
+          s.save = pvpBookkeeping(s.save, false).save;
+          s.message = tr("pvp-loss", {
+            name: s.enemy.encounter.trainerName ?? "Ghost",
+          });
+          s.messageUntil = now + 2800;
+        }
+
         // full restore after the regen pause (battle ref cleared at resume)
         window.setTimeout(() => {
           if (!g.current) return;
@@ -1163,8 +1366,13 @@ export default function PokemonBanner() {
       money: s.save.money + 5,
       moneyEarned: s.save.moneyEarned + 5,
       captures: s.save.captures + 1,
+      auraCaught: s.save.auraCaught + (mon.aura ? 1 : 0),
     });
+
     const caughtAfter = Object.values(s.save.pokedex).filter((v) => v === "caught").length;
+    // v2.0.0: captures count toward the daily quest + League Pass XP.
+    applyActivity(s, "capture", 1);
+
     const newlyEarned = dexMilestonesEarned(caughtAfter).filter(
       (p) => !dexMilestonesEarned(caughtBefore).includes(p),
     );
@@ -1245,6 +1453,9 @@ export default function PokemonBanner() {
       ...s.save,
       inventory: { ...s.save.inventory, [itemId]: count - 1 },
     });
+    // v2.0.0: using healing items counts toward the daily "heal" quest.
+    applyActivity(s, "heal", 1);
+
     playSfx("heal");
     s.message = tr("item-used", {
       item: localizedItemName(itemId, s.save.language),
@@ -1504,6 +1715,188 @@ export default function PokemonBanner() {
   };
 
   /** v1.8.0: pin the banner's biome ("auto" restores the step rotation). */
+  // ---------------------------------------------------------------
+  // v2.0.0 — Ghost PvP, daily quests, League Pass, Safari photos
+  // ---------------------------------------------------------------
+
+  /** Persists the Safari gallery (quota-safe: trims to 6 on overflow). */
+  const persistPhotos = () => {
+    if (typeof localStorage === "undefined" || !g.current) return;
+    try {
+      localStorage.setItem(PHOTOS_KEY, JSON.stringify(g.current.photos));
+    } catch {
+      try {
+        const trimmed = g.current.photos.slice(0, 6);
+        g.current.photos = trimmed;
+        localStorage.setItem(PHOTOS_KEY, JSON.stringify(trimmed));
+      } catch {
+        /* in-memory only */
+      }
+    }
+  };
+
+  /** Records quest + League Pass activity and announces a pass tier-up. */
+  const applyActivity = (s: GameRef, kind: QuestKind, amt = 1) => {
+    const before = passTierFor(s.save.passXp);
+    s.save = normalizeSave(recordActivity(s.save, kind, amt));
+    const after = passTierFor(s.save.passXp);
+    if (after > before) {
+      s.message = tr("pass-tier-unlocked", { tier: after });
+      s.messageUntil = Date.now() + 2200;
+      playSfx("levelup");
+    }
+  };
+
+  const onImportCard = (code: string): boolean => {
+    const s = g.current!;
+    try {
+      const card = decodeTrainerCard(code);
+      s.ghostCard = card;
+      s.message = tr("card-imported", { name: card.trainerName });
+      s.messageUntil = Date.now() + 2200;
+      playSfx("click");
+      rerender();
+      return true;
+    } catch {
+      s.message = tr("invalid-code");
+      s.messageUntil = Date.now() + 2000;
+      playSfx("denied");
+      rerender();
+      return false;
+    }
+  };
+
+  const onChallengeGhost = () => {
+    const s = g.current!;
+    if (!s.ghostCard || s.phase !== "walking") return;
+    const leader = s.save.team[0];
+    if (!leader) return;
+    const encounter = {
+      ...buildGhostEncounter(s.ghostCard, leader.level),
+      trainerName: s.ghostCard.trainerName,
+    };
+    const pokemon = makeWildEnemy(s.save, encounter);
+    s.save = {
+      ...s.save,
+      pokedex: markPokedex(s.save.pokedex, encounter.speciesId, "seen"),
+    };
+    s.message = tr("pvp-await", { name: s.ghostCard.trainerName });
+    s.messageUntil = Date.now() + 2400;
+    playSfx("switchin");
+    preloadSprites([encounter.speciesId], "combat");
+    s.enemy = {
+      pokemon,
+      encounter,
+      x: Math.max(viewportW.current * 0.6, s.leaderX + 260),
+    };
+    s.phase = "approach";
+    s.ghostCard = null;
+    persist();
+    rerender();
+  };
+
+  const onClaimQuest = (index: number) => {
+    const s = g.current!;
+    const res = claimQuest(s.save, index);
+    if (res.reward <= 0) return;
+    s.save = normalizeSave(res.save);
+    s.message = tr("quest-claimed", { money: res.reward });
+    s.messageUntil = Date.now() + 2000;
+    playSfx("pickup");
+    persist();
+    rerender();
+  };
+
+  const onClaimPassTier = (tier: number) => {
+    const s = g.current!;
+    const res = claimPassTier(s.save, tier, rng);
+    if (!res.reward) return;
+    s.save = normalizeSave(res.save);
+    if (res.reward.kind === "aura" && res.reward.aura && res.appliedTo) {
+      s.message = tr("pass-aura", {
+        mon: trName(res.appliedTo),
+        aura: localizedAuraName(res.reward.aura, s.save.language),
+      });
+      playSfx("milestone");
+    } else if (res.reward.kind === "egg") {
+      s.message = tr("pass-egg");
+      playSfx("evolve");
+    } else {
+      s.message = tr("pass-reward", {
+        tier,
+        reward: passRewardLabel(res.reward, s.save.language),
+      });
+      playSfx("pickup");
+    }
+    s.messageUntil = Date.now() + 2400;
+    persist();
+    rerender();
+  };
+
+  const onSetPhotoScale = (scale: string) => {
+    const s = g.current!;
+    s.photoScale = scale;
+    rerender();
+  };
+
+  const onCapturePhoto = async () => {
+    const s = g.current!;
+    const mult = photoScaleFor(s.photoScale).mult;
+    const dataUrl = await drawBannerPhoto(s, mult);
+    if (!dataUrl) return;
+    const leader = s.save.team[0];
+    const entry: PhotoEntry = {
+      id: `p${Date.now().toString(36)}`,
+      at: Date.now(),
+      scale: mult,
+      speciesId: leader?.speciesId ?? "bulbasaur",
+      stamp: photoStampText({
+        mon: leader ? localizedName(leader.speciesId, s.save.language) : "?",
+        level: leader?.level ?? 0,
+        biome: BIOMES[biomeIndexForSave(s.save)].name,
+        phase: timePhase(s.save.startedAt, Date.now()),
+        lang: s.save.language,
+      }),
+      dataUrl,
+    };
+    s.photos = pushPhoto(s.photos, entry);
+    s.save = { ...s.save, photosTaken: s.save.photosTaken + 1 };
+    persistPhotos();
+    persist();
+    s.message = tr("photo-saved");
+    s.messageUntil = Date.now() + 2000;
+    playSfx("click");
+    rerender();
+  };
+
+  const onDeletePhoto = (id: string) => {
+    const s = g.current!;
+    s.photos = s.photos.filter((p) => p.id !== id);
+    persistPhotos();
+    s.message = tr("photo-deleted");
+    s.messageUntil = Date.now() + 1600;
+    rerender();
+  };
+
+  const onExportPhoto = (id: string) => {
+    const s = g.current!;
+    const photo = s.photos.find((p) => p.id === id);
+    if (!photo) return;
+    try {
+      const a = document.createElement("a");
+      a.href = photo.dataUrl;
+      a.download = photoFilename(photo);
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch {
+      /* download blocked */
+    }
+    s.message = tr("photo-exported");
+    s.messageUntil = Date.now() + 1600;
+    rerender();
+  };
+
   const onSetBiome = (biome: string) => {
     const s = g.current!;
     s.save = normalizeSave({ ...s.save, biome });
@@ -2586,7 +2979,17 @@ export default function PokemonBanner() {
               rerender();
             }}
             detailsMon={s.detailsMon}
-          />
+            ghostCard={s.ghostCard}
+            onImportCard={onImportCard}
+            onChallengeGhost={onChallengeGhost}
+            onClaimQuest={onClaimQuest}
+            onClaimPassTier={onClaimPassTier}
+            photos={s.photos}
+            photoScale={s.photoScale}
+            onSetPhotoScale={onSetPhotoScale}
+            onCapturePhoto={onCapturePhoto}
+            onDeletePhoto={onDeletePhoto}
+            onExportPhoto={onExportPhoto}          />
         )}
       </div>
     </div>

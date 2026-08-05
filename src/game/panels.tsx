@@ -22,6 +22,7 @@ import {
   getSpecies,
 } from "./constants";
 import {
+  auraBonus,
   badgeDamageBonus,
   dexMilestonesEarned,
   dexRarity,
@@ -37,6 +38,7 @@ import {
 } from "./presentation";
 import {
   dexFlavor,
+  localizedAuraName,
   localizedItemName,
   localizedMoveName,
   localizedName,
@@ -47,10 +49,25 @@ import type {
   ChampionDef,
   DexRarity,
   Language,
+  PhotoEntry,
   Pokemon,
   SaveData,
+  TrainerCard,
 } from "./types";
-import { ArenaTab, CareerTab, CodexTab, EggsTab, FriendsTab, NewsTab, SaveTab, SettingsTab, ShopTab } from "./panels-tabs";
+import {
+  ArenaTab,
+  CareerTab,
+  CodexTab,
+  EggsTab,
+  FriendsTab,
+  NewsTab,
+  PhotoTab,
+  PvpTab,
+  QuestsTab,
+  SaveTab,
+  SettingsTab,
+  ShopTab,
+} from "./panels-tabs";
 
 export type PanelTab =
   | "items"
@@ -69,7 +86,10 @@ export type PanelTab =
   | "settings"
   | "career"
   | "eggs"
-  | "friends";
+  | "friends"
+  | "pvp"
+  | "quests"
+  | "photo";
 
 export interface GamePanelsProps {
   save: SaveData;
@@ -104,6 +124,21 @@ export interface GamePanelsProps {
   onSetMoves: (pcIndex: number, moves: string[]) => void;
   /** PC index of the Pokémon currently in the details view. */
   detailsIdx: number | null;
+  /** v2.0.0 Ghost PvP: the imported opponent's Trainer Card (null = none). */
+  ghostCard: TrainerCard | null;
+  onImportCard: (code: string) => boolean;
+  onChallengeGhost: () => void;
+  /** v2.0.0 daily quests: claim quest index (0–2). */
+  onClaimQuest: (index: number) => void;
+  /** v2.0.0 League Pass: claim pass tier (1–30). */
+  onClaimPassTier: (tier: number) => void;
+  /** v2.0.0 Safari photo gallery. */
+  photos: PhotoEntry[];
+  photoScale: string;
+  onSetPhotoScale: (scale: string) => void;
+  onCapturePhoto: () => void;
+  onDeletePhoto: (id: string) => void;
+  onExportPhoto: (id: string) => void;
 }
 
 const TABS: { id: PanelTab; label: string }[] = [
@@ -113,6 +148,9 @@ const TABS: { id: PanelTab; label: string }[] = [
   { id: "career", label: "CAREER" },
   { id: "eggs", label: "EGGS" },
   { id: "friends", label: "FRIENDS" },
+  { id: "pvp", label: "PVP" },
+  { id: "quests", label: "QUESTS" },
+  { id: "photo", label: "PHOTO" },
   { id: "center", label: "CENTER" },
   { id: "market", label: "MARKET" },
   { id: "rank", label: "RANK" },
@@ -155,6 +193,9 @@ export function GamePanels(props: GamePanelsProps) {
       {tab === "career" && <CareerTab {...props} />}
       {tab === "eggs" && <EggsTab {...props} />}
       {tab === "friends" && <FriendsTab {...props} />}
+      {tab === "pvp" && <PvpTab {...props} />}
+      {tab === "quests" && <QuestsTab {...props} />}
+      {tab === "photo" && <PhotoTab {...props} />}
       {tab === "center" && <CenterTab {...props} />}
       {tab === "market" && <MarketTab {...props} />}
       {tab === "rank" && <RankTab {...props} />}
@@ -264,6 +305,7 @@ function ItemsTab(props: GamePanelsProps) {
 
 function TeamTab(props: GamePanelsProps) {
   const { save } = props;
+  const lang = save.language;
   const [pendingLeader, setPendingLeader] = useState<number | null>(null);
   if (props.detailsMon) {
     return (
@@ -295,6 +337,20 @@ function TeamTab(props: GamePanelsProps) {
   return (
     <div className="space-y-2 text-[7px]">
       <StatBlock leader={save.team[0]} />
+      {save.team.some((m) => m.aura) && (
+        <div className="border-2 border-ink bg-violet-100 p-1.5">
+          <div className="font-bold uppercase">✨ {t(lang, "aura-bonus")}</div>
+          <div className="mt-0.5 text-ink/70">
+            {save.team
+              .filter((m) => m.aura)
+              .map((m) => {
+                const b = auraBonus(m.aura);
+                return "" + localizedAuraName(m.aura!, lang) + " ×" + b.dmgMult + " dmg · ×" + b.xpMult + " XP";
+              })
+              .join("  ·  ")}
+          </div>
+        </div>
+      )}
       <div className="border-2 border-ink bg-white p-1.5">
         <div className="mb-1 font-bold uppercase">Active Team ({save.team.length}/6)</div>
         {save.team.length === 0 && (
